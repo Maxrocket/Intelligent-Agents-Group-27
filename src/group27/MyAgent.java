@@ -22,11 +22,6 @@ import genius.core.utility.AbstractUtilitySpace;
 import genius.core.utility.AdditiveUtilitySpace;
 import genius.core.utility.EvaluatorDiscrete;
 
-/**
- * A simple example agent that makes random bids above a minimum target utility. 
- *
- * @author Tim Baarslag
- */
 public class MyAgent extends AbstractNegotiationParty 
 {
 	private static double MINIMUM_TARGET = 0.8;
@@ -38,13 +33,9 @@ public class MyAgent extends AbstractNegotiationParty
 	private HashMap<String, Double>[] optionOrder;
 	private double[] nIssueWeighting;
 
-	/**
-	 * Initializes a new instance of the agent.
-	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public void init(NegotiationInfo info) 
-	{
+	public void init(NegotiationInfo info) {
 		super.init(info);
 		AbstractUtilitySpace utilitySpace = info.getUtilitySpace();
 		AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
@@ -55,7 +46,6 @@ public class MyAgent extends AbstractNegotiationParty
 		    int issueNumber = issue.getNumber();
 		    System.out.println(">> " + issue.getName() + " weight: " + additiveUtilitySpace.getWeight(issueNumber));
 
-		    // Assuming that issues are discrete only
 		    IssueDiscrete issueDiscrete = (IssueDiscrete) issue;
 		    EvaluatorDiscrete evaluatorDiscrete = (EvaluatorDiscrete) additiveUtilitySpace.getEvaluator(issueNumber);
 
@@ -85,14 +75,9 @@ public class MyAgent extends AbstractNegotiationParty
 		}
 	}
 
-	/**
-	 * Makes a random offer above the minimum utility target
-	 * Accepts everything above the reservation value at the end of the negotiation; or breaks off otherwise. 
-	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public Action chooseAction(List<Class<? extends Action>> possibleActions) 
-	{
+	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
 		optionOrder = (HashMap<String, Double>[]) new HashMap[optionFrequency.length];
 		double[] issueWeighting = new double[optionFrequency.length];
 		double weightSum = 0.0;
@@ -149,21 +134,17 @@ public class MyAgent extends AbstractNegotiationParty
 		double currentConsession = ((1.0 - threshold) * (1.0 - time)) + threshold;
 		double targetUtil = ((maxUtil - minUtil) * currentConsession) + minUtil;
 		
-		// Check for acceptance if we have received an offer
 		if (lastOffer != null)
 			if (getUtility(lastOffer) >= targetUtil) 
 				return new Accept(getPartyId(), lastOffer);
 		
-		// Otherwise, send out a random offer above the target utility 
 		return new Offer(getPartyId(), generateRandomBidAboveTarget(targetUtil));
 	}
 
-	private Bid generateRandomBidAboveTarget(double target) 
-	{
+	private Bid generateRandomBidAboveTarget(double target) {
 		ArrayList<Bid> samples = new ArrayList<Bid>();
 		Bid randomBid = generateRandomBid();
 		double util;
-		// try 100 times to find a bid under the target utility
 		for (int i = 0; i < 100; i++) {
 			randomBid = generateRandomBid();
 			util = utilitySpace.getUtility(randomBid);
@@ -228,12 +209,8 @@ public class MyAgent extends AbstractNegotiationParty
 		System.out.println("=========");
 	}
 
-	/**
-	 * Remembers the offers received by the opponent.
-	 */
 	@Override
-	public void receiveMessage(AgentID sender, Action action) 
-	{
+	public void receiveMessage(AgentID sender, Action action) {
 		if (action instanceof Offer) 
 		{
 			lastOffer = ((Offer) action).getBid();
@@ -247,17 +224,12 @@ public class MyAgent extends AbstractNegotiationParty
 	}
 
 	@Override
-	public String getDescription() 
-	{
+	public String getDescription() {
 		return "Places random bids >= " + MINIMUM_TARGET;
 	}
-
-	/**
-	 * This stub can be expanded to deal with preference uncertainty in a more sophisticated way than the default behavior.
-	 */
+	
 	@Override
-	public AbstractUtilitySpace estimateUtilitySpace() 
-	{
+	public AbstractUtilitySpace estimateUtilitySpace() {
 		return super.estimateUtilitySpace();
 	}
 
