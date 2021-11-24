@@ -22,8 +22,8 @@ import genius.core.utility.AbstractUtilitySpace;
 import genius.core.utility.AdditiveUtilitySpace;
 import genius.core.utility.EvaluatorDiscrete;
 
-public class MyAgent extends AbstractNegotiationParty 
-{
+public class MyAgent extends AbstractNegotiationParty {
+	
 	private static double MINIMUM_TARGET = 0.8;
 	private Bid lastOffer;
 	private double maxUtil;
