@@ -19,8 +19,6 @@ import genius.core.analysis.BidPoint;
 import genius.core.analysis.MultilateralAnalysis;
 import genius.core.issue.Issue;
 import genius.core.issue.IssueDiscrete;
-import genius.core.issue.Objective;
-import genius.core.issue.Value;
 import genius.core.issue.ValueDiscrete;
 import genius.core.parties.AbstractNegotiationParty;
 import genius.core.parties.NegotiationInfo;
@@ -33,11 +31,8 @@ import genius.core.utility.UtilitySpace;
 
 public class MyAgent extends AbstractNegotiationParty {
 	
-	private static double MINIMUM_TARGET = 0.8;
 	private Bid lastOffer;
 	private double maxUtil;
-	private double minUtil;
-	private double threshold;
 	
 	private OpponentEstimator opEstimator;
 
@@ -61,15 +56,6 @@ public class MyAgent extends AbstractNegotiationParty {
 		AbstractUtilitySpace utilitySpace = info.getUtilitySpace();
 		AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
 		displayUtilitySpace(additiveUtilitySpace);
-		
-		List< Issue > issues = additiveUtilitySpace.getDomain().getIssues();
-		
-		// - 2.0 - Sets parameters for consession. Max concession will be changed to Nash bargaining solution.
-		maxUtil = utilitySpace.getUtility(getMaxUtilityBid());
-		minUtil = utilitySpace.getUtility(getMinUtilityBid());
-		System.out.println("Max: " + maxUtil + ", Min: " + minUtil);
-		threshold = 0.5;
-		// - END 2.0
 		
 		opEstimator = new JohnyBlack(additiveUtilitySpace);
 	}
@@ -100,16 +86,27 @@ public class MyAgent extends AbstractNegotiationParty {
 		System.out.println("#=====" + CharBuffer.allocate(utilitySpace.getName().length()).toString().replace('\0', '=') + "=====#");
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Override
 	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
 		displayUtilitySpace(opEstimator.getModel());
+
+		maxUtil = utilitySpace.getUtility(getMaxUtilityBid());
+		double minUtil = utilitySpace.getUtility(getMinUtilityBid());
+		double nashUtil = 0;
+		BidPoint nashBid = calcNash(utilitySpace, opEstimator.getModel());
+		if (nashBid != null) {
+			nashUtil = nashBid.getUtilityA();
+		}
+				
+		double cNashUtil = ((nashUtil - minUtil) * 0.75) + minUtil;
 		
-		// - 4.0 - Concession calculation based on max concession. Currently linear. Needs abtracting to try different solutions.
+		System.out.println("Nash Util: " + nashUtil);
+		
 		double time = getTimeLine().getTime();
-		double currentConsession = ((1.0 - threshold) * (1.0 - time)) + threshold;
-		double targetUtil = ((maxUtil - minUtil) * currentConsession) + minUtil;
-		// - END 4.0
+		double currentConsession = 1.0 - time;
+		double targetUtil = ((maxUtil - cNashUtil) * currentConsession) + cNashUtil;
+
+		System.out.println("Target Util: " + targetUtil);
 		
 		if (lastOffer != null)
 			if (getUtility(lastOffer) >= targetUtil) 
@@ -118,42 +115,29 @@ public class MyAgent extends AbstractNegotiationParty {
 		return new Offer(getPartyId(), generateRandomBidAboveTarget(targetUtil));
 	}
 
-	private BidPoint calcNash(UtilitySpace oppPrefs, UtilitySpace ourPrefs)
-	{
+	private BidPoint calcNash(UtilitySpace ourPrefs, UtilitySpace oppPrefs) {
 		PartyWithUtility oppParty = new PartyWithUtility() {
 			@Override
-			public AgentID getID()
-			{
-				return new AgentID("oppParty");
-			}
+			public AgentID getID() { return new AgentID("oppParty"); }
 
 			@Override
-			public UtilitySpace getUtilitySpace()
-			{
-				return oppPrefs;
-			}			
+			public UtilitySpace getUtilitySpace() { return oppPrefs; }			
 		};
 		
 		PartyWithUtility ourParty = new PartyWithUtility() {
 
 			@Override
-			public AgentID getID()
-			{
-				return new AgentID("ourParty");
-			}
+			public AgentID getID() { return new AgentID("ourParty"); }
 
 			@Override
-			public UtilitySpace getUtilitySpace()
-			{
-				return ourPrefs;
-			}
+			public UtilitySpace getUtilitySpace() { return ourPrefs; }
 		};
 		
 		ArrayList<PartyWithUtility> parties = new ArrayList();
-		parties.add(oppParty);
 		parties.add(ourParty);
+		parties.add(oppParty);
 		
-		MultilateralAnalysis analyser = new MultilateralAnalysis(parties, null, 200d);
+		MultilateralAnalysis analyser = new MultilateralAnalysis(parties, null, getTimeLine().getTime());
 		
 		return analyser.getNashPoint();
 	}
