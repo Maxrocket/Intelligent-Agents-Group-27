@@ -18,6 +18,7 @@ import genius.core.issue.Value;
 import genius.core.issue.ValueDiscrete;
 import genius.core.parties.AbstractNegotiationParty;
 import genius.core.parties.NegotiationInfo;
+import genius.core.uncertainty.BidRanking;
 import genius.core.utility.AbstractUtilitySpace;
 import genius.core.utility.AdditiveUtilitySpace;
 import genius.core.utility.EvaluatorDiscrete;
@@ -37,6 +38,21 @@ public class MyAgent extends AbstractNegotiationParty {
 	@Override
 	public void init(NegotiationInfo info) {
 		super.init(info);
+		if (hasPreferenceUncertainty()) {
+			System.out.println("Preference uncertainty is enabled.");
+			System.out.println("Agent ID: " + info.getAgentID());
+			BidRanking bidRanking = userModel.getBidRanking();
+			System.out.println("Total number of possible bids: " + userModel.getDomain().getNumberOfPossibleBids());
+			System.out.println("The number of bids in the ranking: " + bidRanking.getSize());
+			System.out.println("The elicitation costs area: " + user.getElicitationCost());
+			List<Bid> bidList = bidRanking.getBidOrder();
+			for (int i = 0; i < bidList.size(); i++) {
+				System.out.println("Bid " + (bidList.size() - i) + ": " + bidList.get(i));
+			}
+		}
+		
+		
+		
 		AbstractUtilitySpace utilitySpace = info.getUtilitySpace();
 		AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
 
