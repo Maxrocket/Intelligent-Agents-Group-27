@@ -1,5 +1,6 @@
 package group27;
 
+import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -7,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
+import agents.org.apache.commons.lang.StringUtils;
 import genius.core.AgentID;
 import genius.core.Bid;
 import genius.core.actions.Accept;
@@ -51,32 +53,11 @@ public class MyAgent extends AbstractNegotiationParty {
 			}
 		}
 		
-		
-		
 		AbstractUtilitySpace utilitySpace = info.getUtilitySpace();
+		displayUtilitySpace(utilitySpace);
+		
 		AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
-
-		// - 1.0 - Prints current utility space. Can be methodised.
 		List< Issue > issues = additiveUtilitySpace.getDomain().getIssues();
-
-		for (Issue issue : issues) {
-		    int issueNumber = issue.getNumber();
-		    System.out.println(">> " + issue.getName() + " weight: " + additiveUtilitySpace.getWeight(issueNumber));
-
-		    IssueDiscrete issueDiscrete = (IssueDiscrete) issue;
-		    EvaluatorDiscrete evaluatorDiscrete = (EvaluatorDiscrete) additiveUtilitySpace.getEvaluator(issueNumber);
-
-		    for (ValueDiscrete valueDiscrete : issueDiscrete.getValues()) {
-		        System.out.println(valueDiscrete.getValue());
-		        System.out.println("Evaluation(getValue): " + evaluatorDiscrete.getValue(valueDiscrete));
-		        try {
-		            System.out.println("Evaluation(getEvaluation): " + evaluatorDiscrete.getEvaluation(valueDiscrete));
-		        } catch (Exception e) {
-		            e.printStackTrace();
-		        }
-		    }
-		}
-		// - END 1.0
 		
 		// - 2.0 - Sets parameters for consession. Max concession will be changed to Nash bargaining solution.
 		maxUtil = utilitySpace.getUtility(getMaxUtilityBid());
@@ -95,7 +76,33 @@ public class MyAgent extends AbstractNegotiationParty {
 			}
 		}
 	}
+	
+	//Displays a utility space to stdOut.
+	private void displayUtilitySpace(AbstractUtilitySpace utilitySpace) {
+		System.out.println("#===== " + utilitySpace.getName() + " =====#");
+		AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
+		//Loops through all issues in domain.
+		List< Issue > issues = additiveUtilitySpace.getDomain().getIssues();
+		for (Issue issue : issues) {
+		    int issueNumber = issue.getNumber();
+		    System.out.println("- " + issue.getName() + " - Weight: " + additiveUtilitySpace.getWeight(issueNumber));
 
+		    IssueDiscrete issueDiscrete = (IssueDiscrete) issue;
+		    EvaluatorDiscrete evaluatorDiscrete = (EvaluatorDiscrete) additiveUtilitySpace.getEvaluator(issueNumber);
+
+		    //Loops through all options in isssue.
+		    for (ValueDiscrete valueDiscrete : issueDiscrete.getValues()) {
+		        System.out.println("  - " + valueDiscrete.getValue());
+		        System.out.println("      Evaluation(getValue): " + evaluatorDiscrete.getValue(valueDiscrete));
+		        try {
+		            System.out.println("      Evaluation(getEvaluation): " + evaluatorDiscrete.getEvaluation(valueDiscrete));
+		        } catch (Exception e) {
+		            e.printStackTrace();
+		        }
+		    }
+		}
+		System.out.println("#=====" + CharBuffer.allocate(utilitySpace.getName().length()).toString().replace('\0', '=') + "=====#");
+	}
 	@SuppressWarnings("unchecked")
 	@Override
 	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
