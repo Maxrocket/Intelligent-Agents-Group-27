@@ -40,6 +40,7 @@ public class MyAgent extends AbstractNegotiationParty {
 		AbstractUtilitySpace utilitySpace = info.getUtilitySpace();
 		AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
 
+		// - 1.0 - Prints current utility space. Can be methodised.
 		List< Issue > issues = additiveUtilitySpace.getDomain().getIssues();
 
 		for (Issue issue : issues) {
@@ -59,12 +60,16 @@ public class MyAgent extends AbstractNegotiationParty {
 		        }
 		    }
 		}
+		// - END 1.0
 		
+		// - 2.0 - Sets parameters for consession. Max concession will be changed to Nash bargaining solution.
 		maxUtil = utilitySpace.getUtility(getMaxUtilityBid());
 		minUtil = utilitySpace.getUtility(getMinUtilityBid());
 		System.out.println("Max: " + maxUtil + ", Min: " + minUtil);
 		threshold = 0.5;
+		// - END 2.0
 		
+		// - 3.0 - Horrible method of defining opponents utility space. Can be rewritten into a UtilitySpace object.
 		optionFrequency = (HashMap<String, Integer>[]) new HashMap[issues.size()];
 		for (int i = 0; i < issues.size(); i++) {
 			optionFrequency[i] = new HashMap<String, Integer>();
@@ -82,6 +87,7 @@ public class MyAgent extends AbstractNegotiationParty {
 		double[] issueWeighting = new double[optionFrequency.length];
 		double weightSum = 0.0;
 		
+		// - 3.1 - Current way of calculating opponents utility space. This should be abstracted to try different methods.
 		for (int i = 0; i < optionFrequency.length; i++) {
 			optionOrder[i] = new HashMap<String, Double>();
 			ArrayList<Entry<String, Integer>> entrySet = new ArrayList<Entry<String, Integer>>(optionFrequency[i].entrySet());
@@ -125,14 +131,17 @@ public class MyAgent extends AbstractNegotiationParty {
 			System.out.print(nIssueWeighting[i] + ", ");
 		}
 		System.out.println("");
+		// - END 3.1
+		// - END 3.0
 		
 		System.out.println("Option Ordering: ");
 		displayHashMapArray(optionOrder);
 		
-		
+		// - 4.0 - Concession calculation based on max concession. Currently linear. Needs abtracting to try different solutions.
 		double time = getTimeLine().getTime();
 		double currentConsession = ((1.0 - threshold) * (1.0 - time)) + threshold;
 		double targetUtil = ((maxUtil - minUtil) * currentConsession) + minUtil;
+		// - END 4.0
 		
 		if (lastOffer != null)
 			if (getUtility(lastOffer) >= targetUtil) 
@@ -142,6 +151,8 @@ public class MyAgent extends AbstractNegotiationParty {
 	}
 
 	private Bid generateRandomBidAboveTarget(double target) {
+		// - 5.0 - Generates counter bid by sampling 100 random bids that are over target util and offering the best for the opponent.
+		//         Can be rewritten into a smarter way of generating counter offers.
 		ArrayList<Bid> samples = new ArrayList<Bid>();
 		Bid randomBid = generateRandomBid();
 		double util;
@@ -160,17 +171,21 @@ public class MyAgent extends AbstractNegotiationParty {
 		} else if (samples.size() > 1) {
 			randomBid = samples.get(0);
 		}
+		// - END 5.0
 		
 		return randomBid;
 	}
 	
+	// - 6.0 - Comparator to sort lists by which is best for the opponent.
 	private Comparator<Bid> bidSort = new Comparator<Bid>() {
 		public int compare(Bid arg0, Bid arg1) {
 			double diff = predictUtil(arg1) - predictUtil(arg0);
 			return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 		}
 	};
-	
+	// - END 6.0
+
+	// - 7.0 - Manual util calculation. Can be replaced when opponent util space changes to the UtilitySpace object.
 	private double predictUtil(Bid bid) {
 		double util = 0.0;
 		List<Value> values = new ArrayList<Value>(bid.getValues().values());
@@ -179,6 +194,7 @@ public class MyAgent extends AbstractNegotiationParty {
 		}		
 		return util;
 	}
+	// - END 7.0
 	
 	private Bid getMaxUtilityBid() {
 	    try {
@@ -198,6 +214,8 @@ public class MyAgent extends AbstractNegotiationParty {
 	    return null;
 	}
 	
+	// - 8.0 - Inteprets the hashmap objects to print current predicted opponent util space. 
+	//         Can be removed when opponent util space changes to the UtilitySpace object.
 	private <V> void displayHashMapArray(HashMap<String, V>[] arr) {
 		for (int i = 0; i < arr.length; i++) {
 			System.out.print("Issue " + i + " - ");
@@ -208,7 +226,9 @@ public class MyAgent extends AbstractNegotiationParty {
 		}
 		System.out.println("=========");
 	}
+	// - END 8.0
 
+	// - 9.0 - Recieves opponent offer and tracks the frequency of which each option has been offered.
 	@Override
 	public void receiveMessage(AgentID sender, Action action) {
 		if (action instanceof Offer) 
@@ -222,6 +242,7 @@ public class MyAgent extends AbstractNegotiationParty {
 			displayHashMapArray(optionFrequency);
 		}
 	}
+	// - END 9.0
 
 	@Override
 	public String getDescription() {
