@@ -1,6 +1,7 @@
 package group27;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -12,15 +13,19 @@ import genius.core.Bid;
 import genius.core.actions.Accept;
 import genius.core.actions.Action;
 import genius.core.actions.Offer;
+import genius.core.analysis.BidPoint;
+import genius.core.analysis.MultilateralAnalysis;
 import genius.core.issue.Issue;
 import genius.core.issue.IssueDiscrete;
 import genius.core.issue.Value;
 import genius.core.issue.ValueDiscrete;
 import genius.core.parties.AbstractNegotiationParty;
 import genius.core.parties.NegotiationInfo;
+import genius.core.parties.PartyWithUtility;
 import genius.core.utility.AbstractUtilitySpace;
 import genius.core.utility.AdditiveUtilitySpace;
 import genius.core.utility.EvaluatorDiscrete;
+import genius.core.utility.UtilitySpace;
 
 public class MyAgent extends AbstractNegotiationParty {
 	
@@ -117,7 +122,7 @@ public class MyAgent extends AbstractNegotiationParty {
 			}
 			weightSum += issueWeighting[i];
 		}
-		
+				
 		nIssueWeighting = new double[issueWeighting.length];
 		System.out.print("Issue Weighting: ");
 		for (int i = 0; i < nIssueWeighting.length; i++) {
@@ -141,6 +146,48 @@ public class MyAgent extends AbstractNegotiationParty {
 		return new Offer(getPartyId(), generateRandomBidAboveTarget(targetUtil));
 	}
 
+	private BidPoint calcNash(UtilitySpace oppPrefs, UtilitySpace ourPrefs)
+	{
+		PartyWithUtility oppParty = new PartyWithUtility() {
+			@Override
+			public AgentID getID()
+			{
+				return new AgentID("oppParty");
+			}
+
+			@Override
+			public UtilitySpace getUtilitySpace()
+			{
+				return oppPrefs;
+			}			
+		};
+		
+		PartyWithUtility ourParty = new PartyWithUtility() {
+
+			@Override
+			public AgentID getID()
+			{
+				// TODO Auto-generated method stub
+				return new AgentID("ourParty");
+			}
+
+			@Override
+			public UtilitySpace getUtilitySpace()
+			{
+				// TODO Auto-generated method stub
+				return ourPrefs;
+			}
+		};
+		
+		ArrayList<PartyWithUtility> parties = new ArrayList();
+		parties.add(oppParty);
+		parties.add(ourParty);
+		
+		MultilateralAnalysis analyser = new MultilateralAnalysis(parties, null, 200d);
+		
+		return analyser.getNashPoint();
+	}
+	
 	private Bid generateRandomBidAboveTarget(double target) {
 		ArrayList<Bid> samples = new ArrayList<Bid>();
 		Bid randomBid = generateRandomBid();
