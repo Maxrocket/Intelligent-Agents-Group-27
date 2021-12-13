@@ -17,6 +17,7 @@ import genius.core.analysis.BidPoint;
 import genius.core.analysis.MultilateralAnalysis;
 import genius.core.issue.Issue;
 import genius.core.issue.IssueDiscrete;
+import genius.core.issue.Objective;
 import genius.core.issue.Value;
 import genius.core.issue.ValueDiscrete;
 import genius.core.parties.AbstractNegotiationParty;
@@ -167,14 +168,12 @@ public class MyAgent extends AbstractNegotiationParty {
 			@Override
 			public AgentID getID()
 			{
-				// TODO Auto-generated method stub
 				return new AgentID("ourParty");
 			}
 
 			@Override
 			public UtilitySpace getUtilitySpace()
 			{
-				// TODO Auto-generated method stub
 				return ourPrefs;
 			}
 		};
