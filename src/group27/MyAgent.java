@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Random;
 
 import agents.org.apache.commons.lang.StringUtils;
 import genius.core.AgentID;
@@ -17,6 +18,7 @@ import genius.core.actions.Action;
 import genius.core.actions.Offer;
 import genius.core.analysis.BidPoint;
 import genius.core.analysis.MultilateralAnalysis;
+import genius.core.analysis.ParetoFrontier;
 import genius.core.issue.Issue;
 import genius.core.issue.IssueDiscrete;
 import genius.core.issue.ValueDiscrete;
@@ -89,16 +91,19 @@ public class MyAgent extends AbstractNegotiationParty {
 	@Override
 	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
 		displayUtilitySpace(opEstimator.getModel());
+		MultilateralAnalysis analyser = generateAnalyser(utilitySpace, opEstimator.getModel());
+		ArrayList<BidPoint> paretoFrontier = buildParetoFrontier(generateAllBids());
 
 		maxUtil = utilitySpace.getUtility(getMaxUtilityBid());
 		double minUtil = utilitySpace.getUtility(getMinUtilityBid());
 		double nashUtil = 0;
-		BidPoint nashBid = calcNash(utilitySpace, opEstimator.getModel());
+		BidPoint nashBid = calcNash(analyser);
+		
 		if (nashBid != null) {
 			nashUtil = nashBid.getUtilityA();
 		}
 				
-		double cNashUtil = ((nashUtil - minUtil) * 0.75) + minUtil;
+		double cNashUtil = ((nashUtil - minUtil) * 0.50) + minUtil;
 		
 		System.out.println("Nash Util: " + nashUtil);
 		
@@ -112,10 +117,37 @@ public class MyAgent extends AbstractNegotiationParty {
 			if (getUtility(lastOffer) >= targetUtil) 
 				return new Accept(getPartyId(), lastOffer);
 		
-		return new Offer(getPartyId(), generateRandomBidAboveTarget(targetUtil));
+		Bid selectedBid = null;
+		if(lastOffer == null || paretoFrontier.size()==0)
+			selectedBid = generateRandomBidAboveTarget(targetUtil, 1000,10000);
+		else
+			selectedBid = generateSubsetBidAboveTarget(targetUtil, paretoFrontier);
+		System.out.printf("Target Util: %f\nRandom Bid Util: %f\n",targetUtil, utilitySpace.getUtility(selectedBid));
+		return new Offer(getPartyId(), selectedBid);
 	}
-
-	private BidPoint calcNash(UtilitySpace ourPrefs, UtilitySpace oppPrefs) {
+	
+	private ArrayList<BidPoint> generateAllBids()
+	{
+		//TODO method stub, needs implementing
+		return new ArrayList<BidPoint>();
+	}
+	
+	/**
+	 * Builds a pareto frontier from a set of all bids
+	 */
+	private ArrayList<BidPoint> buildParetoFrontier(ArrayList<BidPoint> allBids)
+	{
+		ParetoFrontier frontier = new ParetoFrontier();
+		for (BidPoint b : allBids)
+			frontier.mergeIntoFrontier(b);
+		return new ArrayList<BidPoint>(frontier.getFrontier());
+	}
+	
+	/**
+	 * Generates a multilateral analyser, excluding bids, using our and our opponent's preferences
+	 */
+	private MultilateralAnalysis generateAnalyser(UtilitySpace ourPrefs, UtilitySpace oppPrefs)
+	{
 		PartyWithUtility oppParty = new PartyWithUtility() {
 			@Override
 			public AgentID getID() { return new AgentID("oppParty"); }
@@ -138,37 +170,110 @@ public class MyAgent extends AbstractNegotiationParty {
 		parties.add(oppParty);
 		
 		MultilateralAnalysis analyser = new MultilateralAnalysis(parties, null, getTimeLine().getTime());
-		
+		return analyser;
+	}
+	
+	/**
+	 * Calculates a nash bargaining solution 
+	 * @param analyser the analyser to pull the solution from
+	 */
+	private BidPoint calcNash(MultilateralAnalysis analyser) {
 		return analyser.getNashPoint();
 	}
 	
-	private Bid generateRandomBidAboveTarget(double target) {
-		// - 5.0 - Generates counter bid by sampling 100 random bids that are over target util and offering the best for the opponent.
-		//         Can be rewritten into a smarter way of generating counter offers.
-		ArrayList<Bid> samples = new ArrayList<Bid>();
-		Bid randomBid = generateRandomBid();
-		double util;
-		for (int i = 0; i < 100; i++) {
-			randomBid = generateRandomBid();
-			util = utilitySpace.getUtility(randomBid);
-			if (util >= target) {
-				samples.add(randomBid);
-			}
-		}
-		if (samples.size() > 1) {
-			Collections.sort(samples, bidSort);
-			System.out.println("Best Offer: " + samples.get(0) + ", " + predictUtil(samples.get(0)));
-			System.out.println("Worst Offer: " + samples.get(samples.size() - 1) + ", " + predictUtil(samples.get(samples.size() - 1)));
-			randomBid = samples.get(0);
-		} else if (samples.size() > 1) {
-			randomBid = samples.get(0);
-		}
-		// - END 5.0
+	//TODO ensure bidSet.get(x).getUtilityA() is our utility, not opponent utility
+	private Bid generateSubsetBidAboveTarget(double target, ArrayList<BidPoint> bidSet)
+	{
+		BidPoint bestOppBid=bidSet.get(0);
+		BidPoint bestUsBid=bidSet.get(0);
 		
-		return randomBid;
+		for(BidPoint b : bidSet)
+			if(b!=null)
+			{
+				if(b.getUtilityA() >= target)
+					if(b.getUtilityB()>bestOppBid.getUtilityB())
+						bestOppBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
+				if(b.getUtilityA()>bestUsBid.getUtilityA())
+					bestUsBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
+			}
+		
+		if(bestOppBid == null && bestUsBid==null)
+		{
+			System.out.println("Could not find a non-null bid in the best. Generating random bid");
+			return generateRandomBidAboveTarget(target, 1000,10000);
+		}
+		else if(bestOppBid ==null)
+		{
+			System.out.printf("Could not find a bid above target\n Our Best Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
+			return bestUsBid.getBid();
+		}
+		else
+		{
+			System.out.printf("Best bid above target\n Our Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
+			return bestOppBid.getBid();
+		}
 	}
 	
-	// - 6.0 - Comparator to sort lists by which is best for the opponent.
+	/**
+	 * Generates a random bid above the target utility
+	 * @param target the target utility to exceed
+	 * @param minBids the minimum number of random bids to generate, will only be exceeded if no bid above the target utility is generated
+	 * @param maxBids the maximum number of random bids to generate, will not be exceeded
+	 * @return The random bid above the target utility with the highest bid for the modelled oponent; or the bid with the highest utility for us if no such bid was generated.
+	 */
+	private Bid generateRandomBidAboveTarget(double target, long minBids, long maxBids) {
+		// - 5.0 - Generates counter bid by sampling 100 random bids that are over target util and offering the best for the opponent.
+		//         Can be rewritten into a smarter way of generating counter offers.
+		if(maxBids <= minBids)
+			maxBids = minBids+1;
+		
+		Bid randomBid = generateRandomBid();
+		Bid bestOppBid=null;
+		Bid bestUsBid=null;
+		double bestUtil=0;
+		double oppUtil;
+		double bestOpp = 0;
+		double util = utilitySpace.getUtility(randomBid);
+		boolean targetMet=false;
+		
+		for (int i=0;(i<maxBids && !targetMet) || i < minBids;i++)
+		{
+			if(util >= target)
+			{
+				targetMet=true;
+				oppUtil = predictUtil(randomBid);
+				if(oppUtil>bestOpp)
+				{
+					bestOppBid = new Bid(randomBid);
+					bestOpp=oppUtil;
+				}
+			}
+			if(util>bestUtil)
+			{
+				bestUsBid = new Bid(randomBid);
+				bestUtil = util;
+			}
+			randomBid = generateRandomBid();
+			util = utilitySpace.getUtility(randomBid);
+		}
+		
+		if(bestOppBid == null)
+		{
+			System.out.printf("Could not find a bid above target (%f)\n Our Best Util: %f\n Opp Util: %f\n", target, bestUtil, predictUtil(bestUsBid));
+			return bestUsBid;
+		}
+		else
+		{
+			System.out.printf("Best bid above target (%f)\n Our Util: %f\n Opp Util: %f\n", target, utilitySpace.getUtility(bestOppBid), bestOpp);
+			return bestOppBid;
+		}
+		
+		
+		// - END 5.0
+		
+	}
+	
+	// - 6.0 - Comparator to sort lists by which is best for the opponent. DEPRICATED
 	private Comparator<Bid> bidSort = new Comparator<Bid>() {
 		public int compare(Bid arg0, Bid arg1) {
 			double diff = predictUtil(arg1) - predictUtil(arg0);
