@@ -366,8 +366,8 @@ public class MyAgent extends AbstractNegotiationParty {
                 model.setObjective(objective, GRB.MAXIMIZE);
 
                 // Add constraints
-                for (int i = 0; i < r.getBidOrder().size() - 1; i++) {
-                    GRBLinExpr constraint = buildConstraint(r.getBidOrder().get(i), r.getBidOrder().get(i + 1), vars, epsilons[i]);
+                for (int i = r.getBidOrder().size() - 1; i > 0; i--) {
+                    GRBLinExpr constraint = buildConstraint(r.getBidOrder().get(i), r.getBidOrder().get(i - 1), vars, epsilons[i]);
                     model.addConstr(constraint, GRB.GREATER_EQUAL, 0, "c" + i);
                 }
 
