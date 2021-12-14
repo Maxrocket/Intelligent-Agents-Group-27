@@ -95,7 +95,7 @@ public class MyAgent extends AbstractNegotiationParty {
 	
 	@Override
 	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
-		displayUtilitySpace(opEstimator.getModel());
+		//displayUtilitySpace(opEstimator.getModel());
 		MultilateralAnalysis analyser = generateAnalyser(utilitySpace, opEstimator.getModel());
 		ArrayList<BidPoint> paretoFrontier = buildParetoFrontier(generateAllBids());
 
@@ -367,7 +367,7 @@ public class MyAgent extends AbstractNegotiationParty {
 
                 // Add constraints
                 for (int i = r.getBidOrder().size() - 1; i > 0; i--) {
-                    GRBLinExpr constraint = buildConstraint(r.getBidOrder().get(i), r.getBidOrder().get(i - 1), vars, epsilons[i]);
+                    GRBLinExpr constraint = buildConstraint(r.getBidOrder().get(i), r.getBidOrder().get(i - 1), vars, epsilons[i - 1]);
                     model.addConstr(constraint, GRB.GREATER_EQUAL, 0, "c" + i);
                 }
 
@@ -383,7 +383,9 @@ public class MyAgent extends AbstractNegotiationParty {
                         evaluatorDiscrete.setEvaluationDouble((ValueDiscrete) value, utility);
                     }
                     evaluatorDiscrete.normalizeAll();
+                    evaluatorDiscrete.scaleAllValuesFrom0To1();
                 }
+                us.normalizeWeights();
 
                 // Clean up
                 model.dispose();
