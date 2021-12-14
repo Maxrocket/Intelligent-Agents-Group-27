@@ -72,7 +72,7 @@ public class JohnyBlack extends OpponentEstimator {
 				rank++;
 				totalRanks++;
 			}
-			for (Entry<String, Double> entry : optionOrder[i].entrySet()) {
+			for (Entry<String, Double> entry : optionOrder[i].entrySet()) { 
 				optionOrder[i].put(entry.getKey(), (totalRanks - entry.getValue() + 1.0) / totalRanks);
 			}
 			entrySet = new ArrayList<Entry<String, Integer>>(optionFrequency[i].entrySet());

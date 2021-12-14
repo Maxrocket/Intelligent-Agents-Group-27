@@ -103,8 +103,8 @@ public class MyAgent extends AbstractNegotiationParty {
 		System.out.println("Nash Util: " + nashUtil);
 		
 		double time = getTimeLine().getTime();
-		double currentConsession = 1.0 - time;
-		double targetUtil = ((maxUtil - cNashUtil) * currentConsession) + cNashUtil;
+		ConcessionFunction cf = new Linear();
+		double targetUtil = cf.getTargetUtil(maxUtil, cNashUtil, time);
 
 		System.out.println("Target Util: " + targetUtil);
 		
