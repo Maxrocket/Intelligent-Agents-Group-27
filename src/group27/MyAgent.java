@@ -55,7 +55,7 @@ public class MyAgent extends AbstractNegotiationParty {
 				System.out.println("Bid " + (bidList.size() - i) + ": " + bidList.get(i));
 			}
 			
-			estimateUsingLP((AdditiveUtilitySpace) utilitySpace, bidRanking);
+			UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, bidRanking);
 		}
 		
 		AbstractUtilitySpace utilitySpace = info.getUtilitySpace();
