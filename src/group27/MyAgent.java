@@ -63,6 +63,7 @@ public class MyAgent extends AbstractNegotiationParty {
 		displayUtilitySpace(additiveUtilitySpace);
 		
 		opEstimator = new JohnyBlack(additiveUtilitySpace);
+		//opEstimator = new LPGurobi(additiveUtilitySpace);
 	}
 	
 	//Displays a utility space to stdOut.

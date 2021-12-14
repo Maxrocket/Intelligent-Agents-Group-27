@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public interface UserEstimator {
+public class UserEstimator {
 
     public static void estimateUsingLP(AdditiveUtilitySpace us, BidRanking r) {
         HashMap<Issue, ArrayList<Value>> values = getAllValuesUsedInBids(r.getBidOrder());
@@ -85,7 +85,7 @@ public interface UserEstimator {
         }
     }
 
-    public static GRBLinExpr buildConstraint(Bid b0, Bid b1, HashMap<Issue, HashMap<Value, GRBVar>> vars, GRBVar epsilon) {
+    private static GRBLinExpr buildConstraint(Bid b0, Bid b1, HashMap<Issue, HashMap<Value, GRBVar>> vars, GRBVar epsilon) {
         GRBLinExpr constraint = new GRBLinExpr();
         // b0 >= b1 + e  ->   b0 - b1 - e >= 0
 
@@ -103,7 +103,7 @@ public interface UserEstimator {
         return constraint;
     }
 
-    public static HashMap<Issue, ArrayList<Value>> getAllValuesUsedInBids(List<Bid> bids) {
+    private static HashMap<Issue, ArrayList<Value>> getAllValuesUsedInBids(List<Bid> bids) {
         HashMap<Issue, ArrayList<Value>> values = new HashMap<>();
         for (Bid b : bids) {
             List<Issue> issues = b.getIssues();
