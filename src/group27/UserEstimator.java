@@ -57,7 +57,7 @@ public interface UserEstimator {
 
             // Add constraints
             for (int i = r.getBidOrder().size() - 1; i > 0; i--) {
-                GRBLinExpr constraint = buildConstraint(r.getBidOrder().get(i), r.getBidOrder().get(i - 1), vars, epsilons[i]);
+                GRBLinExpr constraint = buildConstraint(r.getBidOrder().get(i), r.getBidOrder().get(i - 1), vars, epsilons[i - 1]);
                 model.addConstr(constraint, GRB.GREATER_EQUAL, 0, "c" + i);
             }
 
