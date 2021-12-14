@@ -32,8 +32,6 @@ import genius.core.utility.AdditiveUtilitySpace;
 import genius.core.utility.EvaluatorDiscrete;
 import genius.core.utility.UtilitySpace;
 
-import gurobi.*;
-
 public class MyAgent extends AbstractNegotiationParty {
 	
 	private Bid lastOffer;
@@ -57,7 +55,7 @@ public class MyAgent extends AbstractNegotiationParty {
 				System.out.println("Bid " + (bidList.size() - i) + ": " + bidList.get(i));
 			}
 			
-			estimateUsingLP(bidRanking);
+			estimateUsingLP((AdditiveUtilitySpace) utilitySpace, bidRanking);
 		}
 		
 		AbstractUtilitySpace utilitySpace = info.getUtilitySpace();
@@ -328,108 +326,5 @@ public class MyAgent extends AbstractNegotiationParty {
 	public AbstractUtilitySpace estimateUtilitySpace() {
 		return super.estimateUtilitySpace();
 	}
-	
-	public void estimateUsingLP(BidRanking r) {
-            HashMap<Issue, ArrayList<Value>> values = getAllValuesUsedInBids(r.getBidOrder());
-
-            try {
-                // Setup Enviornment
-                GRBEnv env = new GRBEnv(true);
-                //env.set("logFile", "solver.log"); //might be needed idk
-                env.start();
-
-                // Create empty model
-                GRBModel model = new GRBModel(env);
-
-                // Add variables (utilities)
-                HashMap<Issue, HashMap<Value, GRBVar>> vars = new HashMap<>();
-                for (Issue issue : values.keySet()) {
-                    vars.put(issue, new HashMap<>());
-                    for (Value value : values.get(issue)) {
-                        if (!vars.get(issue).containsKey(value)) {
-                            GRBVar var = model.addVar(0, 1, 0, GRB.CONTINUOUS, "v" + Math.random());//<<<<<<<<<<<<<<<<<<<<<<<<<check name thing
-                            vars.get(issue).put(value, var);
-                        }
-                    }
-                }
-                // Add variables (epsilons)
-                GRBVar[] epsilons = new GRBVar[r.getBidOrder().size() - 1];
-                for (int i = 0; i < r.getBidOrder().size() - 1; i++) {
-                    epsilons[i] = model.addVar(0, 1, 0, GRB.CONTINUOUS, "e" + i);
-                }
-
-                // Set objective
-                GRBLinExpr objective = new GRBLinExpr();
-                for (GRBVar epsilon : epsilons) {
-                    objective.addTerm(1, epsilon);
-                }
-                model.setObjective(objective, GRB.MAXIMIZE);
-
-                // Add constraints
-                for (int i = r.getBidOrder().size() - 1; i > 0; i--) {
-                    GRBLinExpr constraint = buildConstraint(r.getBidOrder().get(i), r.getBidOrder().get(i - 1), vars, epsilons[i - 1]);
-                    model.addConstr(constraint, GRB.GREATER_EQUAL, 0, "c" + i);
-                }
-
-                // Solve
-                model.optimize();
-
-                // Get Utilities
-                AdditiveUtilitySpace us = (AdditiveUtilitySpace) utilitySpace;
-                for (Issue issue : values.keySet()) {
-                    EvaluatorDiscrete evaluatorDiscrete = (EvaluatorDiscrete) us.getEvaluator(issue.getNumber());
-                    for (Value value : values.get(issue)) {
-                        double utility = vars.get(issue).get(value).get(GRB.DoubleAttr.X);
-                        evaluatorDiscrete.setEvaluationDouble((ValueDiscrete) value, utility);
-                    }
-                    evaluatorDiscrete.normalizeAll();
-                    evaluatorDiscrete.scaleAllValuesFrom0To1();
-                }
-                us.normalizeWeights();
-
-                // Clean up
-                model.dispose();
-                env.dispose();
-
-            } catch (GRBException e) {
-                System.out.println("Error code: " + e.getErrorCode() + ". " + e.getMessage());
-            }
-        }
-
-        private GRBLinExpr buildConstraint(Bid b0, Bid b1, HashMap<Issue, HashMap<Value, GRBVar>> vars, GRBVar epsilon) {
-            GRBLinExpr constraint = new GRBLinExpr();
-            // b0 >= b1 + e  ->   b0 - b1 - e >= 0
-
-            //b0
-            for (Issue issue : b0.getIssues()) {
-                constraint.addTerm(1, vars.get(issue).get(b0.getValue(issue)));
-            }
-            //-b1
-            for (Issue issue : b1.getIssues()) {
-                constraint.addTerm(-1, vars.get(issue).get(b1.getValue(issue)));
-            }
-            //-e0
-            constraint.addTerm(-1, epsilon);
-
-            return constraint;
-        }
-
-        public HashMap<Issue, ArrayList<Value>> getAllValuesUsedInBids(List<Bid> bids) {
-            HashMap<Issue, ArrayList<Value>> values = new HashMap<>();
-            for (Bid b : bids) {
-                List<Issue> issues = b.getIssues();
-                for (Issue issue : issues) {
-                    // Add new issue
-                    if (!values.containsKey(issue)) {
-                        values.put(issue, new ArrayList<Value>());
-                    }
-                    // Add new value
-                    if (!values.get(issue).contains(b.getValue(issue))) {
-                        values.get(issue).add(b.getValue(issue));
-                    }
-                }
-            }
-            return values;
-        }
 
 }
