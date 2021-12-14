@@ -72,7 +72,9 @@ public interface UserEstimator {
                     evaluatorDiscrete.setEvaluationDouble((ValueDiscrete) value, utility);
                 }
                 evaluatorDiscrete.normalizeAll();
+                evaluatorDiscrete.scaleAllValuesFrom0To1();
             }
+            us.normalizeWeights();
 
             // Clean up
             model.dispose();
