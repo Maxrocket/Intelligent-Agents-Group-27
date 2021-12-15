@@ -115,7 +115,7 @@ public class MyAgent extends AbstractNegotiationParty {
 			nashUtil = nashBid.getUtilityA();
 		}
 				
-		double cNashUtil = ((nashUtil - minUtil) * 0.50) + minUtil;
+		double cNashUtil = ((nashUtil - minUtil) * 0.75) + minUtil;
 		
 		System.out.println("Nash Util: " + nashUtil);
 		
