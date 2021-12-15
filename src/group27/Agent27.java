@@ -125,6 +125,10 @@ public class Agent27 extends AbstractNegotiationParty {
 		if (time >= 0.95) {
 			targetUtil = td.getTargetUtil(targetUtil, minUtil, (time - 0.95) * 20.0);
 		}
+                
+                if (time >= 0.995) {
+                        targetUtil = 0;
+                }
 
 		System.out.println("Target Util: " + targetUtil);
 		
