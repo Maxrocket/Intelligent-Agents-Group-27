@@ -13,6 +13,7 @@ import java.util.Random;
 import agents.org.apache.commons.lang.StringUtils;
 import genius.core.AgentID;
 import genius.core.Bid;
+import genius.core.Domain;
 import genius.core.actions.Accept;
 import genius.core.actions.Action;
 import genius.core.actions.Offer;
@@ -36,6 +37,7 @@ public class MyAgent extends AbstractNegotiationParty {
 	
 	private Bid lastOffer;
 	private double maxUtil;
+	private ArrayList<Bid> allPossibleBids;
 	
 	private OpponentEstimator opEstimator;
 
@@ -43,6 +45,8 @@ public class MyAgent extends AbstractNegotiationParty {
 	@Override
 	public void init(NegotiationInfo info) {
 		super.init(info);
+
+		
 		if (hasPreferenceUncertainty()) {
 			System.out.println("Preference uncertainty is enabled.");
 			System.out.println("Agent ID: " + info.getAgentID());
@@ -57,10 +61,13 @@ public class MyAgent extends AbstractNegotiationParty {
 			
 			UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, bidRanking);
 		}
+
+		allPossibleBids = generateAllBids(info.getUtilitySpace().getDomain());
 		
 		AbstractUtilitySpace utilitySpace = info.getUtilitySpace();
 		AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
 		displayUtilitySpace(additiveUtilitySpace);
+		
 		
 		opEstimator = new JohnyBlack(additiveUtilitySpace);
 		//opEstimator = new LPGurobi(additiveUtilitySpace);
@@ -70,7 +77,7 @@ public class MyAgent extends AbstractNegotiationParty {
 	private void displayUtilitySpace(AdditiveUtilitySpace additiveUtilitySpace) {
 		System.out.println("#===== " + utilitySpace.getName() + " =====#");
 		//Loops through all issues in domain.
-		List< Issue > issues = additiveUtilitySpace.getDomain().getIssues();
+		List<Issue> issues = additiveUtilitySpace.getDomain().getIssues();
 		for (Issue issue : issues) {
 		    int issueNumber = issue.getNumber();
 		    System.out.println("- " + issue.getName() + " - Weight: " + additiveUtilitySpace.getWeight(issueNumber));
@@ -94,9 +101,10 @@ public class MyAgent extends AbstractNegotiationParty {
 	
 	@Override
 	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
+		System.out.println("-");
 		//displayUtilitySpace(opEstimator.getModel());
 		MultilateralAnalysis analyser = generateAnalyser(utilitySpace, opEstimator.getModel());
-		ArrayList<BidPoint> paretoFrontier = buildParetoFrontier(generateAllBids());
+		ArrayList<BidPoint> paretoFrontier = buildParetoFrontier(generateAllBidPoints());
 
 		maxUtil = utilitySpace.getUtility(getMaxUtilityBid());
 		double minUtil = utilitySpace.getUtility(getMinUtilityBid());
@@ -130,10 +138,40 @@ public class MyAgent extends AbstractNegotiationParty {
 		return new Offer(getPartyId(), selectedBid);
 	}
 	
-	private ArrayList<BidPoint> generateAllBids()
-	{
-		//TODO method stub, needs implementing
-		return new ArrayList<BidPoint>();
+	private ArrayList<Bid> generateAllBids(Domain domain) {
+		List<Issue> issues = domain.getIssues();
+		ArrayList<Bid> bids = generateAllBidsR(issues, domain.getRandomBid(new Random()), new ArrayList<Bid>());
+		for (Bid bid : bids) {
+			System.out.println(bid);
+		}
+		return bids;
+	}
+	
+	private ArrayList<Bid> generateAllBidsR(List<Issue> issues, Bid bid, ArrayList<Bid> bids) {
+		if (issues.size() > 1) {
+			IssueDiscrete issueDiscrete = (IssueDiscrete) issues.get(0);
+			for (ValueDiscrete valueDiscrete : issueDiscrete.getValues()) {
+				bid = bid.putValue(issueDiscrete.getNumber(), valueDiscrete);
+				Bid newBid = new Bid(bid);
+				bids = generateAllBidsR(issues.subList(1, issues.size()), newBid, bids);
+			}
+		} else {
+			IssueDiscrete issueDiscrete = (IssueDiscrete) issues.get(0);
+			for (ValueDiscrete valueDiscrete : issueDiscrete.getValues()) {
+				bid = bid.putValue(issueDiscrete.getNumber(), valueDiscrete);
+				Bid newBid = new Bid(bid);
+				bids.add(newBid);
+			}
+		}
+		return bids;
+	}
+	
+	private ArrayList<BidPoint> generateAllBidPoints() {
+		ArrayList<BidPoint> bidPoints = new ArrayList<BidPoint>();
+		for (Bid bid : allPossibleBids) {
+			bidPoints.add(new BidPoint(bid, utilitySpace.getUtility(bid), opEstimator.getModel().getUtility(bid)));
+		}
+		return bidPoints;
 	}
 	
 	/**
@@ -141,9 +179,11 @@ public class MyAgent extends AbstractNegotiationParty {
 	 */
 	private ArrayList<BidPoint> buildParetoFrontier(ArrayList<BidPoint> allBids)
 	{
+		System.out.println(allBids);
 		ParetoFrontier frontier = new ParetoFrontier();
 		for (BidPoint b : allBids)
 			frontier.mergeIntoFrontier(b);
+		System.out.println(frontier.getFrontier());
 		return new ArrayList<BidPoint>(frontier.getFrontier());
 	}
 	
@@ -196,12 +236,12 @@ public class MyAgent extends AbstractNegotiationParty {
 		for(BidPoint b : bidSet)
 			if(b!=null)
 			{
-				if(b.getUtilityA() >= target && b.getUtilityB()>bestOppBid.getUtilityB())
+				if(b.getUtilityA() >= target && b.getUtilityB() > bestOppBid.getUtilityB())
 				{
 					found = true;
 					bestOppBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
 				}
-				if(b.getUtilityA()>bestUsBid.getUtilityA())
+				if(b.getUtilityA() > bestUsBid.getUtilityA())
 					bestUsBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
 			}
 		
