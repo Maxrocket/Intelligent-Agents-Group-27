@@ -396,7 +396,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	 */
 	private double elicitBid(Bid bid, double deltaModel)
 	{
-		//condition to elicit on (currently every time)
+		//condition to elicit on
 		if(false && deltaModel >= 0.00 && !userModel.getBidRanking().getBidOrder().contains(bid))
 		{
 			try
