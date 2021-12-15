@@ -188,25 +188,29 @@ public class MyAgent extends AbstractNegotiationParty {
 	//TODO ensure bidSet.get(x).getUtilityA() is our utility, not opponent utility
 	private Bid generateSubsetBidAboveTarget(double target, ArrayList<BidPoint> bidSet)
 	{
-		BidPoint bestOppBid=bidSet.get(0);
-		BidPoint bestUsBid=bidSet.get(0);
+		BidPoint StartBid = new BidPoint(null,0d,0d);
+		BidPoint bestOppBid=new BidPoint(null,0d,0d);
+		BidPoint bestUsBid=StartBid;
+		boolean found = false;
 		
 		for(BidPoint b : bidSet)
 			if(b!=null)
 			{
-				if(b.getUtilityA() >= target)
-					if(b.getUtilityB()>bestOppBid.getUtilityB())
-						bestOppBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
+				if(b.getUtilityA() >= target && b.getUtilityB()>bestOppBid.getUtilityB())
+				{
+					found = true;
+					bestOppBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
+				}
 				if(b.getUtilityA()>bestUsBid.getUtilityA())
 					bestUsBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
 			}
 		
-		if(bestOppBid == null && bestUsBid==null)
+		if(!found && bestUsBid == StartBid)
 		{
 			System.out.println("Could not find a non-null bid in the best. Generating random bid");
 			return generateRandomBidAboveTarget(target, 1000,10000);
 		}
-		else if(bestOppBid ==null)
+		else if(!found)
 		{
 			System.out.printf("Could not find a bid above target\n Our Best Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
 			return bestUsBid.getBid();
