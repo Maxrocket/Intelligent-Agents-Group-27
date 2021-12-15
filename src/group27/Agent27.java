@@ -120,8 +120,11 @@ public class Agent27 extends AbstractNegotiationParty {
 		System.out.println("Nash Util: " + nashUtil);
 		
 		double time = getTimeLine().getTime();
-		TimeDependent td = new TimeDependent(0.2);
+		TimeDependent td = new TimeDependent(0.4);
 		double targetUtil = td.getTargetUtil(maxUtil, cNashUtil, time);
+		if (time >= 0.95) {
+			targetUtil = td.getTargetUtil(targetUtil, minUtil, (time - 0.95) * 20.0);
+		}
 
 		System.out.println("Target Util: " + targetUtil);
 		
