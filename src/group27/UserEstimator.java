@@ -13,6 +13,8 @@ import gurobi.GRBException;
 import gurobi.GRBLinExpr;
 import gurobi.GRBModel;
 import gurobi.GRBVar;
+import gurobi.GRB.IntParam;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +28,7 @@ public class UserEstimator {
             // Setup Enviornment
             GRBEnv env = new GRBEnv(true);
             //env.set("logFile", "solver.log"); //might be needed idk
+            env.set(IntParam.OutputFlag, 0);
             env.start();
 
             // Create empty model
