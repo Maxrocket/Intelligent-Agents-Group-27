@@ -30,12 +30,14 @@ import genius.core.issue.ValueDiscrete;
 import genius.core.parties.AbstractNegotiationParty;
 import genius.core.parties.NegotiationInfo;
 import genius.core.uncertainty.BidRanking;
+import genius.core.uncertainty.ExperimentalUserModel;
 import genius.core.uncertainty.UserModel;
 import genius.core.parties.PartyWithUtility;
 import genius.core.utility.AbstractUtilitySpace;
 import genius.core.utility.AdditiveUtilitySpace;
 import genius.core.utility.Evaluator;
 import genius.core.utility.EvaluatorDiscrete;
+import genius.core.utility.UncertainAdditiveUtilitySpace;
 import genius.core.utility.UtilitySpace;
 
 public class Agent27 extends AbstractNegotiationParty {
@@ -45,6 +47,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	private ArrayList<Bid> allPossibleBids;
 	private double deltaModel;
 	private OpponentEstimator opEstimator;
+	private FilePrinter filePrinter;
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -64,7 +67,7 @@ public class Agent27 extends AbstractNegotiationParty {
 				//System.out.println("Bid " + (bidList.size() - i) + ": " + bidList.get(i));
 			}
 			
-			UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, bidRanking);
+			UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, bidRanking, false);
 		}
 
 		allPossibleBids = generateAllBids(info.getUtilitySpace().getDomain());
@@ -73,6 +76,11 @@ public class Agent27 extends AbstractNegotiationParty {
 		AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
 		displayUtilitySpace(additiveUtilitySpace);
 		deltaModel = 1d;
+		
+		filePrinter = new FilePrinter(info.getAgentID() + "-Agent27");
+		//ExperimentalUserModel e = ( ExperimentalUserModel ) userModel ;
+		//UncertainAdditiveUtilitySpace realUSpace = e.getRealUtilitySpace();
+		//filePrinter.addUtilSpace(realUSpace);
 		
 		opEstimator = new JohnyBlack(additiveUtilitySpace);
 		//opEstimator = new LPGurobi(additiveUtilitySpace);
@@ -135,7 +143,10 @@ public class Agent27 extends AbstractNegotiationParty {
                         targetUtil = 0;
                 }
 
-		//System.out.println("Target Util: " + targetUtil);
+        AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
+        filePrinter.addUtilSpace(additiveUtilitySpace);
+        filePrinter.addUtilSpace(opEstimator.getModel());
+		System.out.println("Target Util: " + targetUtil);
 		
 		if (lastOffer != null)
 			if (getUtility(lastOffer) >= targetUtil) 
@@ -404,7 +415,7 @@ public class Agent27 extends AbstractNegotiationParty {
 				AdditiveUtilitySpace oldUS = (AdditiveUtilitySpace)utilitySpace.copy();
 				
 				userModel = user.elicitRank(bid, userModel);
-				UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, userModel.getBidRanking());
+				UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, userModel.getBidRanking(), false);
 				return measureChange(oldUS, (AdditiveUtilitySpace)utilitySpace);
 			}
 			catch(NullPointerException e) {System.out.println("NPE in elicitBid");}
@@ -421,7 +432,7 @@ public class Agent27 extends AbstractNegotiationParty {
 			if(hasPreferenceUncertainty())
 			{
 				deltaModel = elicitBid(lastOffer, deltaModel);
-				System.out.printf("change in model: %f\n", deltaModel);
+				//System.out.printf("change in model: %f\n", deltaModel);
 			}
 		}
 	}
