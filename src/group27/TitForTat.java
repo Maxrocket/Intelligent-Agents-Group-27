@@ -6,28 +6,36 @@ import genius.core.utility.AdditiveUtilitySpace;
 public class TitForTat {
     
     private AdditiveUtilitySpace userUtilitySpace, opponentUtilitySpace;
-    private Bid userLastBid, opponentLastBid;
+    private Bid userLastBid, opponentBid, opponentLastBid;
 
     public TitForTat(AdditiveUtilitySpace userUtilitySpace, AdditiveUtilitySpace opponentUtilitySpace) {
         this.userUtilitySpace = userUtilitySpace;
         this.opponentUtilitySpace = opponentUtilitySpace;
     }
     
-    public double getTargetOpponentUtil(Bid opponentBid) {
+    public double getMaxTargetOpponentUtil() {
         if (opponentLastBid == null || userLastBid == null) {
-            opponentLastBid = opponentBid;
-            return 0;
+            return 1;
         }
         
         // Calculate opponent's consession
-        double opponentConsession = userUtilitySpace.getUtility(opponentLastBid) - userUtilitySpace.getUtility(opponentBid);
+        double opponentConsession = userUtilitySpace.getUtility(opponentBid) - userUtilitySpace.getUtility(opponentLastBid);
         // Use as user consession
         double targetOpponentUtil = opponentUtilitySpace.getUtility(userLastBid) - opponentConsession;
         
-        // Update last bid
-        opponentLastBid = opponentBid;
-        
         return targetOpponentUtil;
+    }
+    
+    public double getMinTargetOpponentUtil() {
+        if (userLastBid == null) {
+            return 0;
+        }
+        return opponentUtilitySpace.getUtility(userLastBid);
+    }
+    
+    public void updateOpponenetBid(Bid opponentBid) {
+        opponentLastBid = this.opponentBid;
+        this.opponentBid = opponentBid;
     }
     
     public void updateUserBid(Bid userBid) {

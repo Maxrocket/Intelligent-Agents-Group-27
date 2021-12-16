@@ -45,6 +45,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	private ArrayList<Bid> allPossibleBids;
 	private double deltaModel;
 	private OpponentEstimator opEstimator;
+        private TitForTat tft;
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -76,6 +77,8 @@ public class Agent27 extends AbstractNegotiationParty {
 		
 		opEstimator = new JohnyBlack(additiveUtilitySpace);
 		//opEstimator = new LPGurobi(additiveUtilitySpace);
+                
+                tft = new TitForTat(additiveUtilitySpace, (AdditiveUtilitySpace) opEstimator.opUtilSpace);
 	}
 	
 	//Displays a utility space to stdOut.
@@ -243,12 +246,14 @@ public class Agent27 extends AbstractNegotiationParty {
 		if(lastOffer == null || paretoFrontier.size()==0)
 			selectedBid = generateRandomBidAboveTarget(targetUtil, 1000,10000);
 		else
+			//selectedBid = generateSubsetBidWithinOppTarget(tft.getMinTargetOpponentUtil(), tft.getMaxTargetOpponentUtil(), generateAllBidPoints());
 			selectedBid = generateSubsetBidAboveTarget(targetUtil, paretoFrontier);
 		if(hasPreferenceUncertainty())
 			if(elicitPredicate(paretoFrontier, analyser, selectedBid, user.getElicitationCost()))
 				elicitBid(selectedBid);
 		
 		//System.out.printf("Target Util: %f\nRandom Bid Util: %f\n",targetUtil, utilitySpace.getUtility(selectedBid));
+                tft.updateUserBid(selectedBid);
 		return new Offer(getPartyId(), selectedBid);
 	}
 	
@@ -375,13 +380,52 @@ public class Agent27 extends AbstractNegotiationParty {
 			return bestOppBid.getBid();
 		}
 	}
+        
+        private Bid generateSubsetBidWithinOppTarget(double targetMin, double targetMax, ArrayList<BidPoint> bidSet)
+        {
+            BidPoint StartBid = new BidPoint(null,0d,0d);
+            BidPoint bestOppBid = StartBid;
+            BidPoint worstOppBid = StartBid;
+            BidPoint bestUsBid = StartBid;
+            boolean found = false;
+
+            for(BidPoint b : bidSet)
+                if(b!=null)
+                {
+                    //opp's util in target range, better than best bid for us.
+                    if (b.getUtilityB() <= targetMax && b.getUtilityB() > targetMin && (b.getUtilityA() > bestUsBid.getUtilityA() || bestOppBid.getBid() == null)) {
+                        found = true;
+                        bestUsBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
+                    }
+                    //opp's bid better than best bid so far, below max.
+                    if((b.getUtilityB() > bestOppBid.getUtilityB() || bestOppBid.getBid() == null) && b.getUtilityB() < targetMax)
+                        bestOppBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
+                    
+                    //opp's bid worse than worst bid so far, above min.
+                    if((b.getUtilityB() < worstOppBid.getUtilityB() || worstOppBid.getBid() == null) && b.getUtilityB() > targetMin)
+                        worstOppBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
+                }
+
+            if(!found && bestOppBid.getBid() == null && worstOppBid.getBid() == null) {
+                System.out.println("Could not find a non-null bid. Generating random bid");
+                return generateRandomBid();
+            } else if(!found && worstOppBid.getBid() == null) {
+                System.out.printf("Could not find a bid within target\n Our Best Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
+                return bestOppBid.getBid();
+            } else if(!found) {
+                System.out.printf("Best bid above target\n Our Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
+                return worstOppBid.getBid();
+            } else {
+                return bestUsBid.getBid();
+            }
+        }
 	
 	/**
 	 * Generates a random bid above the target utility
 	 * @param target the target utility to exceed
 	 * @param minBids the minimum number of random bids to generate, will only be exceeded if no bid above the target utility is generated
 	 * @param maxBids the maximum number of random bids to generate, will not be exceeded
-	 * @return The random bid above the target utility with the highest bid for the modelled oponent; or the bid with the highest utility for us if no such bid was generated.
+	 * @return The random bid above the target utility with the highest bid for the modelled opponent; or the bid with the highest utility for us if no such bid was generated.
 	 */
 	private Bid generateRandomBidAboveTarget(double target, long minBids, long maxBids) {
 		// - 5.0 - Generates counter bid by sampling 100 random bids that are over target util and offering the best for the opponent.
@@ -517,6 +561,7 @@ public class Agent27 extends AbstractNegotiationParty {
 		if (action instanceof Offer) {
 			lastOffer = ((Offer) action).getBid();
 			opEstimator.addNewBid(lastOffer);
+                        tft.updateOpponenetBid(lastOffer);
 			if(hasPreferenceUncertainty())
 			{
 				//deltaModel = elicitBid(lastOffer);
