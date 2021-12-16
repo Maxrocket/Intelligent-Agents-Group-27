@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,26 +48,34 @@ public class Agent27 extends AbstractNegotiationParty {
 	private ArrayList<Bid> allPossibleBids;
 	private double deltaModel;
 	private OpponentEstimator opEstimator;
-	private ArrayList<Bid> consideredElicits;
+	private ArrayList<Bid> consideredElicits = new ArrayList<Bid>();
+	private long startTime;
+	private long curTime;
+	
 	
 	//functionality options
 	private boolean prefElicit = true;
 	private String opponentModel = "JohnyBlack";
+	private double nashRatio = 1.0;
 	
 	//output options
-	private boolean verboseElicit = true;
-	private boolean verboseStartup = true;
-	private boolean displayUtilSpace = true;
-	private boolean showUtilCalcs = true;
-	private boolean verboseBidGeneration = true;
-	private boolean verboseFrontier = true;
+	private boolean verboseTimeout = false; //output when t >= 90s
+	private boolean verboseTimestamps = false; //output time each action
+	private boolean verboseElicit = false;
+	private boolean verboseStartup = false;
+	private boolean verboseElicitSkips = false;
+	private boolean displayUtilSpace = false;
+	private boolean showUtilCalcs = false;
+	private boolean verboseBidGeneration = false;
+	private boolean verboseFrontier = false;
 	
 	@SuppressWarnings("unchecked")
 	@Override
 	public void init(NegotiationInfo info) {
 		super.init(info);
 
-		
+		if(verboseTimestamps || verboseTimeout)
+			startTime = new Date().getTime();
 		if (hasPreferenceUncertainty()) {
 			if(verboseStartup)
 			{
@@ -140,7 +149,7 @@ public class Agent27 extends AbstractNegotiationParty {
 			nashUtil = nashBid.getUtilityA();
 		}
 				
-		double cNashUtil = ((nashUtil - minUtil) * 0.75) + minUtil;
+		double cNashUtil = ((nashUtil - minUtil) * nashRatio) + minUtil;
 		
 		if(showUtilCalcs)
 			System.out.println("Nash Util: " + nashUtil);
@@ -245,6 +254,8 @@ public class Agent27 extends AbstractNegotiationParty {
 	
 	private boolean elicitPredicate(Bid bid)
 	{
+		if(bid == null)
+			return false;
 		if(getTimeLine().getTime() > 0.995)
 			return false;
 		if(analyser == null)
@@ -262,6 +273,16 @@ public class Agent27 extends AbstractNegotiationParty {
 	
 	@Override
 	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
+
+		curTime = (new Date().getTime()-startTime)/1000;
+		if(curTime >= 60)
+			prefElicit = false;
+		
+		
+		if(verboseTimeout && curTime>=90)
+			System.out.printf("Time elapsed: %o\n", curTime);
+		if(verboseTimestamps)
+			System.out.printf("Time elapsed: %o\n", curTime);
 		//System.out.println("-");
 		//displayUtilitySpace(opEstimator.getModel());
 		analyser = generateAnalyser(utilitySpace, opEstimator.getModel());
@@ -276,7 +297,7 @@ public class Agent27 extends AbstractNegotiationParty {
 			nashUtil = nashBid.getUtilityA();
 		}
 				
-		double cNashUtil = ((nashUtil - minUtil) * 0.75) + minUtil;
+		double cNashUtil = ((nashUtil - minUtil) * nashRatio) + minUtil;
 		
 		if(showUtilCalcs)
 			System.out.println("Nash Util: " + nashUtil);
@@ -297,8 +318,11 @@ public class Agent27 extends AbstractNegotiationParty {
 		
 		if (lastOffer != null)
 			if (getUtility(lastOffer) >= targetUtil) 
+			{
+				if(verboseTimeout)
+					System.out.printf("Completion Time: %o\n", curTime);
 				return new Accept(getPartyId(), lastOffer);
-		
+			}
 		Bid selectedBid = null;
 		if(lastOffer == null || paretoFrontier.size()==0)
 			selectedBid = generateRandomBidAboveTarget(targetUtil, 1000,10000);
@@ -573,7 +597,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	{
 		if(consideredElicits.contains(bid))
 		{
-			if(verboseElicit)
+			if(verboseElicit && verboseElicitSkips)
 				System.out.println("Bid elicit skipped. Already Checked");
 			return 0;
 		}
@@ -606,9 +630,7 @@ public class Agent27 extends AbstractNegotiationParty {
 		if (action instanceof Offer) {
 			lastOffer = ((Offer) action).getBid();
 			opEstimator.addNewBid(lastOffer);
-			if(hasPreferenceUncertainty())
-				if(elicitPredicate(lastOffer))
-					deltaModel = elicitBid(lastOffer);
+			deltaModel = elicitBid(lastOffer);
 		}
 	}
 	// - END 9.0
