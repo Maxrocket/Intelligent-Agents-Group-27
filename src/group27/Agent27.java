@@ -47,7 +47,8 @@ public class Agent27 extends AbstractNegotiationParty {
 	private ArrayList<Bid> allPossibleBids;
 	private double deltaModel;
 	private OpponentEstimator opEstimator;
-
+	private ArrayList<Bid> consideredElicits;
+	
 	//functionality options
 	private boolean prefElicit = true;
 	private String opponentModel = "JohnyBlack";
@@ -208,6 +209,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	{
 		if(userModel.getBidRanking().getBidOrder().contains(bid))
 			return 0;
+		
 		ArrayList<AdditiveUtilitySpace> uss = generateUtilitySpaces(userModel, bid);
 		PriorityQueue<Double> eeusQueue = new PriorityQueue<Double>();
 		double sum = 0;
@@ -569,19 +571,30 @@ public class Agent27 extends AbstractNegotiationParty {
 	 */
 	private double elicitBid(Bid bid)
 	{
+		if(consideredElicits.contains(bid))
+		{
+			if(verboseElicit)
+				System.out.println("Bid elicit skipped. Already Checked");
+			return 0;
+		}
 		if(!prefElicit || !hasPreferenceUncertainty())
 			return 0;
 		//condition to elicit on
 		if(elicitPredicate(bid))
+		{
 			if(!userModel.getBidRanking().getBidOrder().contains(bid))
 			{
 				AdditiveUtilitySpace oldUS = (AdditiveUtilitySpace)utilitySpace.copy();
 					
 				userModel = user.elicitRank(bid, userModel);
 				UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, userModel.getBidRanking());
+				consideredElicits.clear();
 				return measureChange(oldUS, (AdditiveUtilitySpace)utilitySpace);
-				
 			}
+		}
+		else
+			consideredElicits.add(bid);
+				
 		if(verboseElicit)
 			System.out.println("Change In Model: " + deltaModel);
 		return deltaModel;
