@@ -47,6 +47,18 @@ public class Agent27 extends AbstractNegotiationParty {
 	private ArrayList<Bid> allPossibleBids;
 	private double deltaModel;
 	private OpponentEstimator opEstimator;
+
+	//functionality options
+	private boolean prefElicit = true;
+	private String opponentModel = "JohnyBlack";
+	
+	//output options
+	private boolean verboseElicit = true;
+	private boolean verboseStartup = true;
+	private boolean displayUtilSpace = true;
+	private boolean showUtilCalcs = true;
+	private boolean verboseBidGeneration = true;
+	private boolean verboseFrontier = true;
 	
 	@SuppressWarnings("unchecked")
 	@Override
@@ -55,16 +67,22 @@ public class Agent27 extends AbstractNegotiationParty {
 
 		
 		if (hasPreferenceUncertainty()) {
-			//System.out.println("Preference uncertainty is enabled.");
-			//System.out.println("Agent ID: " + info.getAgentID());
-			BidRanking bidRanking = userModel.getBidRanking();
-			//System.out.println("Total number of possible bids: " + userModel.getDomain().getNumberOfPossibleBids());
-			//System.out.println("The number of bids in the ranking: " + bidRanking.getSize());
-			//System.out.println("The elicitation costs area: " + user.getElicitationCost());
-			List<Bid> bidList = bidRanking.getBidOrder();
-			for (int i = 0; i < bidList.size(); i++) {
-				//System.out.println("Bid " + (bidList.size() - i) + ": " + bidList.get(i));
+			if(verboseStartup)
+			{
+				 System.out.println("Preference uncertainty is enabled.");
+				 System.out.println("Agent ID: " + info.getAgentID());
 			}
+			BidRanking bidRanking = userModel.getBidRanking();
+			if(verboseStartup)
+			{
+				System.out.println("Total number of possible bids: " + userModel.getDomain().getNumberOfPossibleBids());
+				System.out.println("The number of bids in the ranking: " + bidRanking.getSize());
+				System.out.println("The elicitation costs area: " + user.getElicitationCost());
+			}
+			List<Bid> bidList = bidRanking.getBidOrder();
+			if(verboseStartup)
+				for (int i = 0; i < bidList.size(); i++)
+					System.out.println("Bid " + (bidList.size() - i) + ": " + bidList.get(i));
 			
 			UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, bidRanking);
 		}
@@ -76,34 +94,38 @@ public class Agent27 extends AbstractNegotiationParty {
 		displayUtilitySpace(additiveUtilitySpace);
 		deltaModel = 1d;
 		
-		opEstimator = new JohnyBlack(additiveUtilitySpace);
-		//opEstimator = new LPGurobi(additiveUtilitySpace);
+		if(opponentModel.equals("JohnyBlack"))
+			opEstimator = new JohnyBlack(additiveUtilitySpace);
+		else if(opponentModel.equals("Gurobi"))
+			opEstimator = new LPGurobi(additiveUtilitySpace);
 	}
 	
 	//Displays a utility space to stdOut.
 	private void displayUtilitySpace(AdditiveUtilitySpace additiveUtilitySpace) {
-		//System.out.println("#===== " + utilitySpace.getName() + " =====#");
+		if(!displayUtilSpace)
+			return;
+		System.out.println("#===== " + utilitySpace.getName() + " =====#");
 		//Loops through all issues in domain.
 		List<Issue> issues = additiveUtilitySpace.getDomain().getIssues();
 		for (Issue issue : issues) {
 		    int issueNumber = issue.getNumber();
-		    //System.out.println("- " + issue.getName() + " - Weight: " + additiveUtilitySpace.getWeight(issueNumber));
+		    System.out.println("- " + issue.getName() + " - Weight: " + additiveUtilitySpace.getWeight(issueNumber));
 
 		    IssueDiscrete issueDiscrete = (IssueDiscrete) issue;
 		    EvaluatorDiscrete evaluatorDiscrete = (EvaluatorDiscrete) additiveUtilitySpace.getEvaluator(issueNumber);
 
 		    //Loops through all options in isssue.
 		    for (ValueDiscrete valueDiscrete : issueDiscrete.getValues()) {
-		        //System.out.println("  - " + valueDiscrete.getValue());
-		        //System.out.println("      Evaluation(getValue): " + evaluatorDiscrete.getValue(valueDiscrete));
+		        System.out.println("  - " + valueDiscrete.getValue());
+		        System.out.println("      Evaluation(getValue): " + evaluatorDiscrete.getValue(valueDiscrete));
 		        try {
-		            //System.out.println("      Evaluation(getEvaluation): " + evaluatorDiscrete.getEvaluation(valueDiscrete));
+		            System.out.println("      Evaluation(getEvaluation): " + evaluatorDiscrete.getEvaluation(valueDiscrete));
 		        } catch (Exception e) {
 		            e.printStackTrace();
 		        }
 		    }
 		}
-		//System.out.println("#=====" + CharBuffer.allocate(utilitySpace.getName().length()).toString().replace('\0', '=') + "=====#");
+		System.out.println("#=====" + CharBuffer.allocate(utilitySpace.getName().length()).toString().replace('\0', '=') + "=====#");
 	}
 	
 	private ArrayList<Bid> generateBidPlan(double time, ArrayList<BidPoint> paretoFrontier, MultilateralAnalysis analyser)
@@ -119,7 +141,8 @@ public class Agent27 extends AbstractNegotiationParty {
 				
 		double cNashUtil = ((nashUtil - minUtil) * 0.75) + minUtil;
 		
-		//System.out.println("Nash Util: " + nashUtil);
+		if(showUtilCalcs)
+			System.out.println("Nash Util: " + nashUtil);
 
 		while(time<1.0)
 		{
@@ -132,8 +155,8 @@ public class Agent27 extends AbstractNegotiationParty {
             if (time >= 0.995) {
                     targetUtil = 0;
             }
-	
-			//System.out.println("Target Util: " + targetUtil);
+            if(showUtilCalcs)
+            	System.out.println("Target Util: " + targetUtil);
 			
 			Bid selectedBid = null;
 			if(lastOffer == null || paretoFrontier.size()==0)
@@ -230,7 +253,7 @@ public class Agent27 extends AbstractNegotiationParty {
 		double evoi = EVOI(bid);
 		ArrayList<Bid> bidPlan = generateBidPlan(getTimeLine().getTime(), paretoFrontier, analyser);
 		double eeu = EEU(bidPlan, utilitySpace);
-		if(eeu != 0d && evoi != 0d)
+		if(eeu != 0d && evoi != 0d && verboseElicit)
 			System.out.printf("Comparing %f > (%f + %f)\n", evoi, eeu, user.getElicitationCost());
 		return evoi > (eeu + user.getElicitationCost());
 	}
@@ -253,7 +276,8 @@ public class Agent27 extends AbstractNegotiationParty {
 				
 		double cNashUtil = ((nashUtil - minUtil) * 0.75) + minUtil;
 		
-		//System.out.println("Nash Util: " + nashUtil);
+		if(showUtilCalcs)
+			System.out.println("Nash Util: " + nashUtil);
 		
 		double time = getTimeLine().getTime();
 		TimeDependent td = new TimeDependent(0.4);
@@ -262,11 +286,12 @@ public class Agent27 extends AbstractNegotiationParty {
 			targetUtil = td.getTargetUtil(targetUtil, minUtil, (time - 0.95) * 20.0);
 		}
                 
-                if (time >= 0.995) {
-                        targetUtil = 0;
-                }
-
-		//System.out.println("Target Util: " + targetUtil);
+	    if (time >= 0.995) {
+	            targetUtil = 0;
+	    }
+	
+	    if(showUtilCalcs)
+			System.out.println("Target Util: " + targetUtil);
 		
 		if (lastOffer != null)
 			if (getUtility(lastOffer) >= targetUtil) 
@@ -277,14 +302,11 @@ public class Agent27 extends AbstractNegotiationParty {
 			selectedBid = generateRandomBidAboveTarget(targetUtil, 1000,10000);
 		else
 			selectedBid = generateSubsetBidAboveTarget(targetUtil, paretoFrontier);
-		if(hasPreferenceUncertainty())
-			if(elicitPredicate(lastOffer))
-			{
-				deltaModel = elicitBid(lastOffer);
-				System.out.printf("Change in model (Us): %f\n", deltaModel);
-			}
+		elicitBid(lastOffer);
+				
 		
-		//System.out.printf("Target Util: %f\nRandom Bid Util: %f\n",targetUtil, utilitySpace.getUtility(selectedBid));
+		if(showUtilCalcs)
+			System.out.printf("Target Util: %f\nSelected Bid Util: %f\n",targetUtil, utilitySpace.getUtility(selectedBid));
 		return new Offer(getPartyId(), selectedBid);
 	}
 	
@@ -336,11 +358,13 @@ public class Agent27 extends AbstractNegotiationParty {
 	 */
 	private ArrayList<BidPoint> buildParetoFrontier(ArrayList<BidPoint> allBids)
 	{
-		//System.out.println(allBids);
 		ParetoFrontier frontier = new ParetoFrontier();
 		for (BidPoint b : allBids)
 			frontier.mergeIntoFrontier(b);
-		//System.out.println(frontier.getFrontier());
+
+
+		if(verboseFrontier)
+			System.out.println("Pareto Frontier Size: " + frontier.getFrontier().size());
 		return new ArrayList<BidPoint>(frontier.getFrontier());
 	}
 	
@@ -404,17 +428,20 @@ public class Agent27 extends AbstractNegotiationParty {
 		
 		if(!found && bestUsBid == StartBid)
 		{
-			//System.out.println("Could not find a non-null bid in the best. Generating random bid");
+			if(verboseBidGeneration)
+				System.out.println("Could not find a non-null bid in the best. Generating random bid");
 			return generateRandomBidAboveTarget(target, 1000,10000);
 		}
 		else if(!found)
 		{
-			//System.out.printf("Could not find a bid above target\n Our Best Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
+			if(verboseBidGeneration)
+				System.out.printf("Could not find a bid above target\n Our Best Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
 			return bestUsBid.getBid();
 		}
 		else
 		{
-			//System.out.printf("Best bid above target\n Our Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
+			if(verboseBidGeneration)
+				System.out.printf("Best bid above target\n Our Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
 			return bestOppBid.getBid();
 		}
 	}
@@ -464,12 +491,14 @@ public class Agent27 extends AbstractNegotiationParty {
 		
 		if(bestOppBid == null)
 		{
-			//System.out.printf("Could not find a bid above target (%f)\n Our Best Util: %f\n Opp Util: %f\n", target, bestUtil, predictUtil(bestUsBid));
+			if(verboseBidGeneration)
+				System.out.printf("Could not find a bid above target (%f)\n Our Best Util: %f\n Opp Util: %f\n", target, bestUtil, predictUtil(bestUsBid));
 			return bestUsBid;
 		}
 		else
 		{
-			//System.out.printf("Best bid above target (%f)\n Our Util: %f\n Opp Util: %f\n", target, utilitySpace.getUtility(bestOppBid), bestOpp);
+			if(verboseBidGeneration)
+				System.out.printf("Best bid above target (%f)\n Our Util: %f\n Opp Util: %f\n", target, utilitySpace.getUtility(bestOppBid), bestOpp);
 			return bestOppBid;
 		}
 		
@@ -525,7 +554,6 @@ public class Agent27 extends AbstractNegotiationParty {
 		for(Objective o : aMap.keySet())
 			if(bMap.containsKey(o))
 			{
-				//System.out.printf("Our Weight: %f\nTheir Weight: %f\n", aMap.get(o).getWeight(),bMap.get(o).getWeight());
 				sum += (Math.abs(aMap.get(o).getWeight() - bMap.get(o).getWeight())); 
 				cnt ++;
 			}
@@ -541,16 +569,21 @@ public class Agent27 extends AbstractNegotiationParty {
 	 */
 	private double elicitBid(Bid bid)
 	{
+		if(!prefElicit || !hasPreferenceUncertainty())
+			return 0;
 		//condition to elicit on
-		if(!userModel.getBidRanking().getBidOrder().contains(bid))
-		{
-			AdditiveUtilitySpace oldUS = (AdditiveUtilitySpace)utilitySpace.copy();
+		if(elicitPredicate(bid))
+			if(!userModel.getBidRanking().getBidOrder().contains(bid))
+			{
+				AdditiveUtilitySpace oldUS = (AdditiveUtilitySpace)utilitySpace.copy();
+					
+				userModel = user.elicitRank(bid, userModel);
+				UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, userModel.getBidRanking());
+				return measureChange(oldUS, (AdditiveUtilitySpace)utilitySpace);
 				
-			userModel = user.elicitRank(bid, userModel);
-			UserEstimator.estimateUsingLP((AdditiveUtilitySpace) utilitySpace, userModel.getBidRanking());
-			return measureChange(oldUS, (AdditiveUtilitySpace)utilitySpace);
-			
-		}
+			}
+		if(verboseElicit)
+			System.out.println("Change In Model: " + deltaModel);
 		return deltaModel;
 	}
 
@@ -562,10 +595,7 @@ public class Agent27 extends AbstractNegotiationParty {
 			opEstimator.addNewBid(lastOffer);
 			if(hasPreferenceUncertainty())
 				if(elicitPredicate(lastOffer))
-				{
 					deltaModel = elicitBid(lastOffer);
-					System.out.printf("Change in model (Op): %f\n", deltaModel);
-				}
 		}
 	}
 	// - END 9.0
