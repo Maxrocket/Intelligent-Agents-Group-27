@@ -48,8 +48,7 @@ public class KiTsune extends OpponentEstimator {
 		double weightSum = 0.0;
 
         for (int i = 0; i < optionFrequency.length; i++) {
-            ArrayList<Entry<String, Integer>> entrySet = new ArrayList<Entry<String, Integer>>(optionFrequency[i].entrySet());
-
+        	
             Entry<String, Integer> maxEntry = null;
             Integer sum = 0;
             Integer Z = 0;

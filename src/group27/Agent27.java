@@ -58,7 +58,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	
 	
 	//functionality options
-	private boolean prefElicit = true;
+	private boolean prefElicit = false;
 	private String opponentModel = "KiTsune";
 	private double nashRatio = 1.0;
 	
@@ -289,7 +289,6 @@ public class Agent27 extends AbstractNegotiationParty {
 	
 	@Override
 	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
-		System.out.println("|||||||");
 		displayUtilitySpace(opEstimator.getModel());
 
 		curTime = (new Date().getTime()-startTime)/1000;
