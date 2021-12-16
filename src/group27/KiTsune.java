@@ -48,19 +48,23 @@ public class KiTsune extends OpponentEstimator {
 		double weightSum = 0.0;
 
         for (int i = 0; i < optionFrequency.length; i++) {
-            optionMap[i] = new HashMap<String, Double>();
-
             ArrayList<Entry<String, Integer>> entrySet = new ArrayList<Entry<String, Integer>>(optionFrequency[i].entrySet());
 
-            Map.Entry<String, Integer> maxEntry = null;
+            Entry<String, Integer> maxEntry = null;
             Integer sum = 0;
             Integer Z = 0;
+            Integer maxsum = 0;
 
             // Get a max frequency entry from the map (Note that there can be multiple entries with the same max frequency.)
-            for (Map.Entry<String, Integer> entry : optionFrequency.entrySet()) {
+            for (Entry<String, Integer> entry : optionFrequency[i].entrySet()) {
                 if (maxEntry == null || entry.getValue().compareTo(maxEntry.getValue()) > 0) {
                     maxEntry = entry;
                     sum += entry.getValue();
+                    Z += maxsum;
+                    maxsum = entry.getValue();
+                } else if (entry.getValue().compareTo(maxEntry.getValue()) == 0) {
+                    sum += entry.getValue();
+                	maxsum += maxEntry.getValue();
                 } else {
                     // Z only includes the values of non-maximal options.
                     Z += entry.getValue();
@@ -68,30 +72,33 @@ public class KiTsune extends OpponentEstimator {
             }
 
             // Start new hashmap that stores the proportional frequencies of each entry
-            HashMap<String, Double> propFreq= (HashMap<String, Double>[]) new HashMap[optionFrequency.length];
+            HashMap<String, Double> propFreq = new HashMap<String, Double>();
 
-            for (Map.Entry<String, Integer> entry : optionFrequency.entrySet()) {
-                if (entry.getValue() = maxEntry.getValue()) {
-                    propFreq.put(entry.getKey(),1);
+            for (Entry<String, Integer> entry : optionFrequency[i].entrySet()) {
+                if (entry.getValue() == maxEntry.getValue()) {
+                    propFreq.put(entry.getKey(),1.0);
                 } else {
                     if (Z == 0) {
-                        propFreq.put(entry.getKey(),Z);
+                        propFreq.put(entry.getKey(),Z+0.0);
                     } else {
-                        propFreq.put(entry.getKey(),entry.getValue()/Z);
+                        propFreq.put(entry.getKey(),entry.getValue()/(Z+0.0));
                     }
                 }
             }
 
             Double importance = 0d;
-            for (Map.Entry<String, Integer> entry : optionFrequency.entrySet()) {
-                importance += propFreq.get(entry.getKey()).getValue() * entry.getValue();
+            for (Entry<String, Integer> entry : optionFrequency[i].entrySet()) {
+                importance += propFreq.get(entry.getKey()) * entry.getValue();
             }
-            importance = importance / sum;
-
+            optionMap[i] = propFreq;
+            weightSum += importance / sum;
+            issueWeighting[i] = importance / sum;
         }
-
-        
-
+		
+		double[] nIssueWeighting = new double[issueWeighting.length];
+		for (int i = 0; i < nIssueWeighting.length; i++) {
+			nIssueWeighting[i] = issueWeighting[i] / weightSum;
+		}
         
 		
 		List<Issue> issues = opUtilSpace.getDomain().getIssues();
@@ -101,7 +108,7 @@ public class KiTsune extends OpponentEstimator {
 		    EvaluatorDiscrete evaluatorDiscrete = (EvaluatorDiscrete) opUtilSpace.getEvaluator(issueNumber + 1);
 		    
 		    evaluatorDiscrete.setWeight(nIssueWeighting[issueNumber]);
-		    for (Entry<String, Double> entry : optionOrder[issueNumber].entrySet()) {
+		    for (Entry<String, Double> entry : optionMap[issueNumber].entrySet()) {
 		    	evaluatorDiscrete.setEvaluationDouble(new ValueDiscrete(entry.getKey()), entry.getValue());
 			}
 		}

@@ -50,15 +50,15 @@ public class Agent27 extends AbstractNegotiationParty {
 
 	//functionality options
 	private boolean prefElicit = true;
-	private String opponentModel = "JohnyBlack";
+	private String opponentModel = "KiTsune";
 	
 	//output options
-	private boolean verboseElicit = true;
-	private boolean verboseStartup = true;
+	private boolean verboseElicit = false;
+	private boolean verboseStartup = false;
 	private boolean displayUtilSpace = true;
-	private boolean showUtilCalcs = true;
-	private boolean verboseBidGeneration = true;
-	private boolean verboseFrontier = true;
+	private boolean showUtilCalcs = false;
+	private boolean verboseBidGeneration = false;
+	private boolean verboseFrontier = false;
 	
 	@SuppressWarnings("unchecked")
 	@Override
@@ -98,6 +98,8 @@ public class Agent27 extends AbstractNegotiationParty {
 			opEstimator = new JohnyBlack(additiveUtilitySpace);
 		else if(opponentModel.equals("Gurobi"))
 			opEstimator = new LPGurobi(additiveUtilitySpace);
+		else if(opponentModel.equals("KiTsune"))
+			opEstimator = new KiTsune(additiveUtilitySpace);
 	}
 	
 	//Displays a utility space to stdOut.
@@ -206,6 +208,8 @@ public class Agent27 extends AbstractNegotiationParty {
 	
 	private double EVOI(Bid bid)
 	{
+		if (bid == null)
+			return 0;
 		if(userModel.getBidRanking().getBidOrder().contains(bid))
 			return 0;
 		ArrayList<AdditiveUtilitySpace> uss = generateUtilitySpaces(userModel, bid);
@@ -260,8 +264,8 @@ public class Agent27 extends AbstractNegotiationParty {
 	
 	@Override
 	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
-		//System.out.println("-");
-		//displayUtilitySpace(opEstimator.getModel());
+		System.out.println("|||||||");
+		displayUtilitySpace(opEstimator.getModel());
 		analyser = generateAnalyser(utilitySpace, opEstimator.getModel());
 		paretoFrontier = buildParetoFrontier(generateAllBidPoints());
 
