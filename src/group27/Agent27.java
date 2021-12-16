@@ -52,15 +52,18 @@ public class Agent27 extends AbstractNegotiationParty {
 	private OpponentEstimator opEstimator;
 	private FilePrinter filePrinter;
 
+	private ArrayList<Bid> placedBids = new ArrayList<Bid>();
 	private ArrayList<Bid> consideredElicits = new ArrayList<Bid>();
 	private long startTime;
 	private long curTime;
 	
 	
 	//functionality options
-	private boolean prefElicit = true;
+	private boolean prefElicit = false;
 	private String opponentModel = "JohnyBlack";
 	private double nashRatio = 1.0;
+	private boolean scareConcede = true;
+	private boolean bidNoise = true;
 	
 	//output options
 	private boolean verboseTimeout = false; //output when t >= 90s
@@ -170,11 +173,11 @@ public class Agent27 extends AbstractNegotiationParty {
 		{
 			TimeDependent td = new TimeDependent(0.4);
 			double targetUtil = td.getTargetUtil(maxUtil, cNashUtil, time);
-			if (time >= 0.95) {
+			if (time >= 0.95 && scareConcede) {
 				targetUtil = td.getTargetUtil(targetUtil, minUtil, (time - 0.95) * 20.0);
 			}
 	                
-            if (time >= 0.995) {
+            if (time >= 0.995 && scareConcede) {
                     targetUtil = 0;
             }
             if(showUtilCalcs)
@@ -246,7 +249,6 @@ public class Agent27 extends AbstractNegotiationParty {
 		}
 		
 		ArrayList<Double> eeus = new ArrayList<Double>(eeusQueue);
-		ArrayList<Double> ds = new ArrayList<Double>();
 		double mean = sum/cnt;
 		while(eeusQueue.peek()!=null)
 			sum = (Math.pow(eeusQueue.remove()-mean,2));
@@ -287,14 +289,14 @@ public class Agent27 extends AbstractNegotiationParty {
 	public Action chooseAction(List<Class<? extends Action>> possibleActions) {
 
 		curTime = (new Date().getTime()-startTime)/1000;
-		if(curTime >= 60)
+		if(curTime >= 45 && prefElicit)
 			prefElicit = false;
 		
 		
 		if(verboseTimeout && curTime>=90)
-			System.out.printf("Time elapsed: %o\n", curTime);
+			System.out.printf("Time elapsed on round %n: %o\n", getTimeLine().getCurrentTime(), curTime);
 		if(verboseTimestamps)
-			System.out.printf("Time elapsed: %o\n", curTime);
+			System.out.printf("Time elapsed on round %n: %o\n", getTimeLine().getCurrentTime(), curTime);
 		//System.out.println("-");
 		//displayUtilitySpace(opEstimator.getModel());
 		analyser = generateAnalyser(utilitySpace, opEstimator.getModel());
@@ -321,7 +323,7 @@ public class Agent27 extends AbstractNegotiationParty {
 			targetUtil = td.getTargetUtil(targetUtil, minUtil, (time - 0.95) * 20.0);
 		}
                 
-	    if (time >= 0.995) {
+	    if (time >= 0.995 && scareConcede) {
 	        targetUtil = 0;
 	    }
 	
@@ -342,12 +344,23 @@ public class Agent27 extends AbstractNegotiationParty {
 					System.out.printf("Completion Time: %o\n", curTime);
 				return new Accept(getPartyId(), lastOffer);
 			}
+
 		Bid selectedBid = null;
 		if(lastOffer == null || paretoFrontier.size()==0)
-			selectedBid = generateRandomBidAboveTarget(targetUtil, 1000,10000);
+			selectedBid = new Bid(generateRandomBidAboveTarget(targetUtil, 1000,10000));
 		else
-			selectedBid = generateSubsetBidAboveTarget(targetUtil, paretoFrontier);
-		elicitBid(lastOffer);
+			selectedBid = new Bid(generateSubsetBidAboveTarget(targetUtil, paretoFrontier));
+		
+		if(bidNoise && time < 0.95)
+			selectedBid = generateNewBidAboveThreshold(utilitySpace.getUtility(selectedBid), selectedBid);
+		
+		ArrayList<Bid> paretoBids = new ArrayList<Bid>();
+		for(BidPoint p : paretoFrontier)
+			paretoBids.add(p.getBid());
+		if(!paretoBids.contains(selectedBid))
+			System.out.printf("BID %f NOT ON PARETO FRONTIER\n", getTimeLine().getCurrentTime());
+		elicitBid(selectedBid);
+		placedBids.add(selectedBid);
 				
 		
 		if(showUtilCalcs)
@@ -355,12 +368,17 @@ public class Agent27 extends AbstractNegotiationParty {
 		return new Offer(getPartyId(), selectedBid);
 	}
 	
+	private Bid generateNewBidAboveThreshold(double targetUtil, Bid defaultBid)
+	{
+		for(Bid b : allPossibleBids)
+			if(utilitySpace.getUtility(b) > targetUtil && !placedBids.contains(b))
+				return b;
+		return defaultBid;
+	}
+
 	private ArrayList<Bid> generateAllBids(Domain domain) {
 		List<Issue> issues = domain.getIssues();
 		ArrayList<Bid> bids = generateAllBidsR(issues, domain.getRandomBid(new Random()), new ArrayList<Bid>());
-		for (Bid bid : bids) {
-			//System.out.println(bid);
-		}
 		return bids;
 	}
 	
@@ -382,7 +400,7 @@ public class Agent27 extends AbstractNegotiationParty {
 		}
 		return bids;
 	}
-
+	
 	private ArrayList<BidPoint> generateAllBidPoints() {
 		ArrayList<BidPoint> bidPoints = new ArrayList<BidPoint>();
 		for (Bid bid : allPossibleBids) {
@@ -435,7 +453,7 @@ public class Agent27 extends AbstractNegotiationParty {
 			public UtilitySpace getUtilitySpace() { return ourPrefs; }
 		};
 		
-		ArrayList<PartyWithUtility> parties = new ArrayList();
+		ArrayList<PartyWithUtility> parties = new ArrayList<PartyWithUtility>();
 		parties.add(ourParty);
 		parties.add(oppParty);
 		
@@ -449,8 +467,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	 */
 	private BidPoint calcNash(MultilateralAnalysis analyser) {
 		return analyser.getNashPoint();
-	}
-	
+	}	
 	//TODO ensure bidSet.get(x).getUtilityA() is our utility, not opponent utility
 	private Bid generateSubsetBidAboveTarget(double target, ArrayList<BidPoint> bidSet)
 	{
@@ -551,15 +568,6 @@ public class Agent27 extends AbstractNegotiationParty {
 		// - END 5.0
 		
 	}
-	
-	// - 6.0 - Comparator to sort lists by which is best for the opponent. DEPRICATED
-	private Comparator<Bid> bidSort = new Comparator<Bid>() {
-		public int compare(Bid arg0, Bid arg1) {
-			double diff = predictUtil(arg1) - predictUtil(arg0);
-			return diff < 0 ? -1 : diff > 0 ? 1 : 0;
-		}
-	};
-	// - END 6.0
 
 	private double predictUtil(Bid bid) {	
 		return opEstimator.getModel().getUtility(bid);
