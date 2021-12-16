@@ -22,7 +22,7 @@ public class LPGurobi extends OpponentEstimator {
 	protected void updateModel() {
 		List<Bid> bidList = (List<Bid>) opponentOffers.clone();
 		Collections.reverse(bidList);
-		UserEstimator.estimateUsingLP(opUtilSpace, new BidRanking(bidList, 0, 1));
+		UserEstimator.estimateUsingLP(opUtilSpace, new BidRanking(bidList, 0, 1), true);
 	}
 
 }

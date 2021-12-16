@@ -21,8 +21,13 @@ import java.util.List;
 
 public class UserEstimator {
 
-    public static void estimateUsingLP(AdditiveUtilitySpace us, BidRanking r) {
+    public static void estimateUsingLP(AdditiveUtilitySpace us, BidRanking r, boolean uncertain) {
         HashMap<Issue, ArrayList<Value>> values = getAllValuesUsedInBids(r.getBidOrder());
+        
+        int num = 0;
+        if (uncertain) {
+			num = -values.keySet().size();
+		}
 
         try {
             // Setup Enviornment
@@ -48,7 +53,7 @@ public class UserEstimator {
             // Add variables (epsilons)
             GRBVar[] epsilons = new GRBVar[r.getBidOrder().size() - 1];
             for (int i = 0; i < r.getBidOrder().size() - 1; i++) {
-                epsilons[i] = model.addVar(0, 1, 0, GRB.CONTINUOUS, "e" + i);
+                epsilons[i] = model.addVar(num, 1, 0, GRB.CONTINUOUS, "e" + i);
             }
 
             // Set objective
