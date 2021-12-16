@@ -72,6 +72,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	private boolean showUtilCalcs = false;
 	private boolean verboseBidGeneration = false;
 	private boolean verboseFrontier = false;
+	private boolean evaluationPrinting = false;
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -113,10 +114,12 @@ public class Agent27 extends AbstractNegotiationParty {
 		else if(opponentModel.equals("Gurobi"))
 			opEstimator = new LPGurobi(additiveUtilitySpace);
 
-		filePrinter = new FilePrinter(info.getAgentID() + "-Agent27");
-		//ExperimentalUserModel e = ( ExperimentalUserModel ) userModel ;
-		//UncertainAdditiveUtilitySpace realUSpace = e.getRealUtilitySpace();
-		//filePrinter.addUtilSpace(realUSpace);
+		if (evaluationPrinting) {
+			filePrinter = new FilePrinter(info.getAgentID() + "-Agent27");
+			ExperimentalUserModel e = ( ExperimentalUserModel ) userModel ;
+			UncertainAdditiveUtilitySpace realUSpace = e.getRealUtilitySpace();
+			filePrinter.addUtilSpace(realUSpace);
+		}
 	}
 	
 	//Displays a utility space to stdOut.
@@ -216,7 +219,7 @@ public class Agent27 extends AbstractNegotiationParty {
 			ArrayList<Bid> newBidOrder = new ArrayList<Bid>(baseBidOrder);
 			newBidOrder.add(i, bid);
 			UserModel updatedModel = new UserModel(new BidRanking(newBidOrder, model.getBidRanking().getLowUtility(), model.getBidRanking().getHighUtility()));
-			UserEstimator.estimateUsingLP(newUtilitySpace, updatedModel.getBidRanking());
+			UserEstimator.estimateUsingLP(newUtilitySpace, updatedModel.getBidRanking(), false);
 			ret.add(newUtilitySpace);
 		}
 
@@ -325,9 +328,12 @@ public class Agent27 extends AbstractNegotiationParty {
 	    if(showUtilCalcs)
 			System.out.println("Target Util: " + targetUtil);
 
-        AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
-        filePrinter.addUtilSpace(additiveUtilitySpace);
-        filePrinter.addUtilSpace(opEstimator.getModel());
+
+		if (evaluationPrinting) {
+	        AdditiveUtilitySpace additiveUtilitySpace = (AdditiveUtilitySpace) utilitySpace;
+	        filePrinter.addUtilSpace(additiveUtilitySpace);
+	        filePrinter.addUtilSpace(opEstimator.getModel());
+		}
 		
 		if (lastOffer != null)
 			if (getUtility(lastOffer) >= targetUtil) 
