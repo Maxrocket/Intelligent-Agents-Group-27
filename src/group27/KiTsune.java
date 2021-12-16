@@ -43,45 +43,56 @@ public class KiTsune extends OpponentEstimator {
 
 	@Override
 	public void updateModel() {
-		HashMap<String, Double>[] optionOrder = (HashMap<String, Double>[]) new HashMap[optionFrequency.length];
+		HashMap<String, Double>[] optionMap = (HashMap<String, Double>[]) new HashMap[optionFrequency.length];
 		double[] issueWeighting = new double[optionFrequency.length];
 		double weightSum = 0.0;
 
-        Map.Entry<String, Integer> maxEntry = null;
-        Integer sum = 0;
-        Integer Z = 0;
+        for (int i = 0; i < optionFrequency.length; i++) {
+            optionMap[i] = new HashMap<String, Double>();
 
-        // Get a max frequency entry from the map (Note that there can be multiple entries with the same max frequency.)
-        for (Map.Entry<String, Integer> entry : optionFrequency.entrySet()) {
-            if (maxEntry == null || entry.getValue().compareTo(maxEntry.getValue()) > 0) {
-                maxEntry = entry;
-                sum += entry.getValue();
-            } else {
-                // Z only includes the values of non-maximal options.
-                Z += entry.getValue();
-            }
-        }
+            ArrayList<Entry<String, Integer>> entrySet = new ArrayList<Entry<String, Integer>>(optionFrequency[i].entrySet());
 
-        // Start new hashmap that stores the proportional frequencies of each entry
-        HashMap<String, Double> propFreq= (HashMap<String, Double>[]) new HashMap[optionFrequency.length];
+            Map.Entry<String, Integer> maxEntry = null;
+            Integer sum = 0;
+            Integer Z = 0;
 
-        for (Map.Entry<String, Integer> entry : optionFrequency.entrySet()) {
-            if (entry.getValue() = maxEntry.getValue()) {
-                propFreq.put(entry.getKey(),1);
-            } else {
-                if (Z == 0) {
-                    propFreq.put(entry.getKey(),Z);
+            // Get a max frequency entry from the map (Note that there can be multiple entries with the same max frequency.)
+            for (Map.Entry<String, Integer> entry : optionFrequency.entrySet()) {
+                if (maxEntry == null || entry.getValue().compareTo(maxEntry.getValue()) > 0) {
+                    maxEntry = entry;
+                    sum += entry.getValue();
                 } else {
-                    propFreq.put(entry.getKey(),entry.getValue()/Z);
+                    // Z only includes the values of non-maximal options.
+                    Z += entry.getValue();
                 }
             }
+
+            // Start new hashmap that stores the proportional frequencies of each entry
+            HashMap<String, Double> propFreq= (HashMap<String, Double>[]) new HashMap[optionFrequency.length];
+
+            for (Map.Entry<String, Integer> entry : optionFrequency.entrySet()) {
+                if (entry.getValue() = maxEntry.getValue()) {
+                    propFreq.put(entry.getKey(),1);
+                } else {
+                    if (Z == 0) {
+                        propFreq.put(entry.getKey(),Z);
+                    } else {
+                        propFreq.put(entry.getKey(),entry.getValue()/Z);
+                    }
+                }
+            }
+
+            Double importance = 0d;
+            for (Map.Entry<String, Integer> entry : optionFrequency.entrySet()) {
+                importance += propFreq.get(entry.getKey()).getValue() * entry.getValue();
+            }
+            importance = importance / sum;
+
         }
 
-        Double importance = 0d;
-        for (Map.Entry<String, Integer> entry : optionFrequency.entrySet()) {
-            importance += propFreq.get(entry.getKey()).getValue() * entry.getValue();
-        }
-        importance = importance / sum;
+        
+
+        
 		
 		List<Issue> issues = opUtilSpace.getDomain().getIssues();
 		for (Issue issue : issues) {
