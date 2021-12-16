@@ -316,7 +316,9 @@ public class Agent27 extends AbstractNegotiationParty {
 		
 		double time = getTimeLine().getTime();
 		TimeDependent td = new TimeDependent(0.4);
-		double targetUtil = td.getTargetUtil(maxUtil, cNashUtil, time);
+		//double targetUtil = td.getTargetUtil(maxUtil, cNashUtil, time);
+                double targetUtil = OptimalBiddingConcession.getTargetUtil(minUtil, getTimeLine().getTotalTime() - getTimeLine().getCurrentTime());
+                /*
 		if (time >= 0.95) {
 			targetUtil = td.getTargetUtil(targetUtil, minUtil, (time - 0.95) * 20.0);
 		}
@@ -324,6 +326,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	    if (time >= 0.995) {
 	        targetUtil = 0;
 	    }
+                */
 	
 	    if(showUtilCalcs)
 			System.out.println("Target Util: " + targetUtil);
