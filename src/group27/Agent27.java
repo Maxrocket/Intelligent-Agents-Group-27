@@ -45,7 +45,7 @@ public class Agent27 extends AbstractNegotiationParty {
 	private ArrayList<Bid> allPossibleBids;
 	private double deltaModel;
 	private OpponentEstimator opEstimator;
-
+	
 	@SuppressWarnings("unchecked")
 	@Override
 	public void init(NegotiationInfo info) {
@@ -104,56 +104,36 @@ public class Agent27 extends AbstractNegotiationParty {
 		//System.out.println("#=====" + CharBuffer.allocate(utilitySpace.getName().length()).toString().replace('\0', '=') + "=====#");
 	}
 	
-	//Pretty sure this is useless
-	private ArrayList<Bid> generateBidPlan(double time, ArrayList<BidPoint> paretoFrontier, MultilateralAnalysis analyser)
-	{
-		maxUtil = utilitySpace.getUtility(getMaxUtilityBid());
-		double minUtil = utilitySpace.getUtility(getMinUtilityBid());
-		double nashUtil = 0;
-		BidPoint nashBid = calcNash(analyser);
-		ArrayList<Bid> ret = new ArrayList<Bid>();
-		if (nashBid != null) {
-			nashUtil = nashBid.getUtilityA();
-		}
-				
-		double cNashUtil = ((nashUtil - minUtil) * 0.75) + minUtil;
-		
-		//System.out.println("Nash Util: " + nashUtil);
-
-		while(time<1.0)
-		{
-			TimeDependent td = new TimeDependent(0.4);
-			double targetUtil = td.getTargetUtil(maxUtil, cNashUtil, time);
-			if (time >= 0.95) {
-				targetUtil = td.getTargetUtil(targetUtil, minUtil, (time - 0.95) * 20.0);
-			}
-	                
-            if (time >= 0.995) {
-                    targetUtil = 0;
-            }
 	
-			//System.out.println("Target Util: " + targetUtil);
-			
-			Bid selectedBid = null;
-			if(lastOffer == null || paretoFrontier.size()==0)
-				selectedBid = generateRandomBidAboveTarget(targetUtil, 1000,10000);
-			else
-				selectedBid = generateSubsetBidAboveTarget(targetUtil, paretoFrontier);
-			ret.add(selectedBid);
-			time += 0.005;
-		}
-		return ret;
+	//returns the 
+	private double EEU(UtilitySpace us, int samples)
+	{
+		return EEU(us, buildParetoFrontier(generateAllBidPoints(us)), samples);
 	}
 	
-	private double EEU(ArrayList<BidPoint> paretoFrontier, MultilateralAnalysis analyser, UtilitySpace us)
+	private double EEU(UtilitySpace us, ArrayList<BidPoint> paretoFrontier, int samples)
 	{
-		Bid selectedBid = null;
-		if(lastOffer == null || paretoFrontier.size()==0)
-			selectedBid = generateRandomBidAboveTarget(0, 1000,10000);
-		else
-			selectedBid = generateSubsetBidAboveTarget(0, paretoFrontier);
-		
-		return us.getUtility(selectedBid);
+		if(paretoFrontier == null || us == null)
+		{
+			System.out.println("NPE in EEU");
+			return 1.0;
+		}
+		double utilStep = 1.0/(samples);
+		int cnt=0;
+		double sum=0;
+		for(double x=0;x<=1.0;x+=utilStep)
+		{
+			Bid targetBid = generateSubsetBidAboveOppTarget(x, paretoFrontier);
+			if(targetBid == null)
+			{
+				System.out.println("NPE in EEU");
+				return 1.0;
+			}
+				
+			sum+=us.getUtility(targetBid);
+			cnt++;
+		}
+		return sum/cnt;
 	}
 	
 	/**
@@ -163,7 +143,6 @@ public class Agent27 extends AbstractNegotiationParty {
 	 */
 	private ArrayList<AdditiveUtilitySpace> generateUtilitySpaces(UserModel model, Bid bid)
 	{
-		
 		ArrayList<Bid> baseBidOrder = new ArrayList<Bid>(model.getBidRanking().getBidOrder());
 		ArrayList<AdditiveUtilitySpace> ret = new ArrayList<AdditiveUtilitySpace>();
 		for(int i=0;i<model.getBidRanking().getSize()+1;i++)
@@ -172,14 +151,14 @@ public class Agent27 extends AbstractNegotiationParty {
 			ArrayList<Bid> newBidOrder = new ArrayList<Bid>(baseBidOrder);
 			newBidOrder.add(i, bid);
 			UserModel updatedModel = new UserModel(new BidRanking(newBidOrder, model.getBidRanking().getLowUtility(), model.getBidRanking().getHighUtility()));
-			UserEstimator.estimateUsingLP(newUtilitySpace, userModel.getBidRanking());
+			UserEstimator.estimateUsingLP(newUtilitySpace, updatedModel.getBidRanking());
 			ret.add(newUtilitySpace);
 		}
 
 		return ret;
 	}
 	
-	private double EVOI(ArrayList<BidPoint> paretoFrontier, MultilateralAnalysis analyser, Bid bid)
+	private double EVOI(Bid bid)
 	{
 		if(userModel.getBidRanking().getBidOrder().contains(bid))
 			return 0;
@@ -189,17 +168,19 @@ public class Agent27 extends AbstractNegotiationParty {
 		for(AdditiveUtilitySpace us : uss)
 		{
 			cnt++;
-			sum+=EEU(paretoFrontier, analyser, us);
+			sum+=EEU(us, 25);
 		}
 		
 		return sum/cnt;
 	}
 	
-	private boolean elicitPredicate(ArrayList<BidPoint> paretoFrontier, MultilateralAnalysis analyser, Bid bid, double elicitCost)
+	private boolean elicitPredicate(Bid bid)
 	{
-		double evoi = EVOI(paretoFrontier, analyser, bid);
-		System.out.printf("Comparing %f > %f", evoi, elicitCost);
-		return evoi > elicitCost;
+		double evoi = EVOI(bid);
+		double eeu = EEU(utilitySpace, 25);
+		if(eeu != 0d && evoi != 0d)
+			System.out.printf("Comparing %f > (%f + %f)\n", evoi, eeu, user.getElicitationCost());
+		return evoi > (eeu + user.getElicitationCost());
 	}
 	
 	@Override
@@ -245,8 +226,11 @@ public class Agent27 extends AbstractNegotiationParty {
 		else
 			selectedBid = generateSubsetBidAboveTarget(targetUtil, paretoFrontier);
 		if(hasPreferenceUncertainty())
-			if(elicitPredicate(paretoFrontier, analyser, selectedBid, user.getElicitationCost()))
-				elicitBid(selectedBid);
+			if(elicitPredicate(lastOffer))
+			{
+				deltaModel = elicitBid(lastOffer);
+				System.out.printf("Change in model (Us): %f\n", deltaModel);
+			}
 		
 		//System.out.printf("Target Util: %f\nRandom Bid Util: %f\n",targetUtil, utilitySpace.getUtility(selectedBid));
 		return new Offer(getPartyId(), selectedBid);
@@ -279,11 +263,18 @@ public class Agent27 extends AbstractNegotiationParty {
 		}
 		return bids;
 	}
-	
+
 	private ArrayList<BidPoint> generateAllBidPoints() {
 		ArrayList<BidPoint> bidPoints = new ArrayList<BidPoint>();
 		for (Bid bid : allPossibleBids) {
 			bidPoints.add(new BidPoint(bid, utilitySpace.getUtility(bid), opEstimator.getModel().getUtility(bid)));
+		}
+		return bidPoints;
+	}
+	private ArrayList<BidPoint> generateAllBidPoints(UtilitySpace us) {
+		ArrayList<BidPoint> bidPoints = new ArrayList<BidPoint>();
+		for (Bid bid : allPossibleBids) {
+			bidPoints.add(new BidPoint(bid, us.getUtility(bid), opEstimator.getModel().getUtility(bid)));
 		}
 		return bidPoints;
 	}
@@ -373,6 +364,44 @@ public class Agent27 extends AbstractNegotiationParty {
 		{
 			//System.out.printf("Best bid above target\n Our Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
 			return bestOppBid.getBid();
+		}
+	}
+	
+	private Bid generateSubsetBidAboveOppTarget(double target, ArrayList<BidPoint> bidSet)
+	{
+		BidPoint StartBid = new BidPoint(null,0d,0d);
+		BidPoint bestOppBid=StartBid;
+		BidPoint worstUsBid=new BidPoint(null,0d,0d);
+		boolean found = false;
+		
+		for(BidPoint b : bidSet)
+			if(b!=null)
+			{
+				//opp's util over target, better than best bid for us.
+				if(b.getUtilityB() >= target && b.getUtilityA() < worstUsBid.getUtilityA())
+				{
+					found = true;
+					worstUsBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
+				}
+				//opp's bid better than best bid so far.
+				if(b.getUtilityB() > bestOppBid.getUtilityB())
+					bestOppBid = new BidPoint(b.getBid(), b.getUtilityA(), b.getUtilityB());
+			}
+		
+		if(!found && bestOppBid.getBid() == null)
+		{
+			System.out.println("Could not find a non-null bid in the best. Generating random bid");
+			return null;
+		}
+		else if(!found)
+		{
+			//System.out.printf("Could not find a bid above target\n Our Best Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
+			return bestOppBid.getBid();
+		}
+		else
+		{
+			//System.out.printf("Best bid above target\n Our Util: %f\n Opp Util: %f\n", bestUsBid.getUtilityA(), bestUsBid.getUtilityB());
+			return worstUsBid.getBid();
 		}
 	}
 	
@@ -518,10 +547,11 @@ public class Agent27 extends AbstractNegotiationParty {
 			lastOffer = ((Offer) action).getBid();
 			opEstimator.addNewBid(lastOffer);
 			if(hasPreferenceUncertainty())
-			{
-				//deltaModel = elicitBid(lastOffer);
-				System.out.printf("change in model: %f\n", deltaModel);
-			}
+				if(elicitPredicate(lastOffer))
+				{
+					deltaModel = elicitBid(lastOffer);
+					System.out.printf("Change in model (Op): %f\n", deltaModel);
+				}
 		}
 	}
 	// - END 9.0

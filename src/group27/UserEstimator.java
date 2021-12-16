@@ -72,6 +72,8 @@ public class UserEstimator {
                 EvaluatorDiscrete evaluatorDiscrete = (EvaluatorDiscrete) us.getEvaluator(issue.getNumber());
                 for (Value value : values.get(issue)) {
                     double utility = vars.get(issue).get(value).get(GRB.DoubleAttr.X);
+                    if(utility<0)
+                    	utility=0;
                     evaluatorDiscrete.setEvaluationDouble((ValueDiscrete) value, utility);
                 }
                 evaluatorDiscrete.normalizeAll();
